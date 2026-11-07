@@ -21,6 +21,7 @@ export default function CustomerDetailPage() {
   const [creditLimit, setCreditLimit] = useState("");
   const [status, setStatus] = useState<"active" | "blocked" | "paused">("active");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -30,14 +31,20 @@ export default function CustomerDetailPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const { data: shops } = await supabase
       .from("shops")
       .select("*")
       .eq("owner_id", user.id)
       .limit(1);
-    if (!shops?.[0]) return;
+    if (!shops?.[0]) {
+      setLoading(false);
+      return;
+    }
     setShop(shops[0]);
 
     const { data: sc } = await supabase
@@ -74,16 +81,27 @@ export default function CustomerDetailPage() {
 
   async function updateSettings() {
     if (!link) return;
+    const parsedLimit = Number(creditLimit);
+    if (!Number.isFinite(parsedLimit) || parsedLimit < 0) {
+      setError("Enter a valid non-negative credit limit.");
+      return;
+    }
+
     setSaving(true);
-    await supabase
+    setError(null);
+    const { error: updateError } = await supabase
       .from("shop_customers")
-      .update({
-        credit_limit: Number(creditLimit),
-        status,
-      })
+      .update({ credit_limit: parsedLimit, status })
       .eq("id", link.id);
+
+    if (updateError) {
+      setError("Could not update customer settings. Please try again.");
+      setSaving(false);
+      return;
+    }
+
     setSaving(false);
-    load();
+    await load();
   }
 
   if (loading) {
@@ -125,6 +143,8 @@ export default function CustomerDetailPage() {
             <label className="text-sm text-slate-500">Credit Limit</label>
             <input
               type="number"
+              min="0"
+              step="0.01"
               className="input mt-1"
               value={creditLimit}
               onChange={(e) => setCreditLimit(e.target.value)}
