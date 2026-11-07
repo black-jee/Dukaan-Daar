@@ -61,9 +61,6 @@ export default function JoinShopPage() {
     const { error } = await supabase.from("shop_customers").insert({
       shop_id: shopId,
       customer_id: userId,
-      credit_limit: 500,
-      current_balance: 0,
-      status: "active",
     });
 
     if (error) {
