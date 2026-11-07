@@ -62,7 +62,7 @@ as $$
 declare
   requested_role text;
 begin
-  requested_role := new.raw_user_meta_data ->> 'role';
+  requested_role := coalesce(new.raw_user_meta_data ->> 'role', 'customer');
   if requested_role not in ('merchant', 'customer') then
     requested_role := 'customer';
   end if;
