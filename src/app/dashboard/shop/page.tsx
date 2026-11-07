@@ -1,0 +1,183 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import type { Shop } from "@/types/database";
+
+const CATEGORIES = [
+  "Tea / Coffee",
+  "Paan / Cigarette",
+  "Kirana / Grocery",
+  "Snacks / Fast Food",
+  "Juice / Cold Drink",
+  "General Store",
+  "Other",
+];
+
+export default function ShopSetupPage() {
+  const router = useRouter();
+  const supabase = createClient();
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [address, setAddress] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    loadShop();
+  }, []);
+
+  async function loadShop() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("shops")
+      .select("*")
+      .eq("owner_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      setShop(data);
+      setName(data.name);
+      setCategory(data.category);
+      setAddress(data.address || "");
+      setUpiId(data.upi_id || "");
+      setDescription(data.description || "");
+    }
+    setLoading(false);
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const payload = {
+      name,
+      category,
+      address: address || null,
+      upi_id: upiId || null,
+      description: description || null,
+      owner_id: user.id,
+    };
+
+    let result;
+    if (shop) {
+      result = await supabase.from("shops").update(payload).eq("id", shop.id).select().single();
+    } else {
+      result = await supabase.from("shops").insert(payload).select().single();
+    }
+
+    if (result.error) {
+      setError(result.error.message);
+    } else {
+      setShop(result.data);
+      setSuccess(true);
+      setTimeout(() => router.push("/dashboard"), 1000);
+    }
+    setSaving(false);
+  }
+
+  if (loading) {
+    return <div className="py-20 text-center text-slate-500">Loading…</div>;
+  }
+
+  return (
+    <div className="mx-auto max-w-lg">
+      <h1 className="mb-6 text-2xl font-bold">
+        {shop ? "Edit Shop" : "Create Your Shop"}
+      </h1>
+
+      <form onSubmit={handleSave} className="card space-y-4">
+        {error && (
+          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        )}
+        {success && (
+          <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+            Saved successfully!
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Shop Name *</label>
+          <input
+            required
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ramesh Tea Stall"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Category *</label>
+          <select
+            className="input"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Address</label>
+          <input
+            className="input"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Near bus stand, Main Road"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">UPI ID (for payments)</label>
+          <input
+            className="input"
+            value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            placeholder="ramesh@upi"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Customers will use this to pay dues via GPay / PhonePe / Paytm
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Short description</label>
+          <textarea
+            className="input"
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Best cutting chai in the area"
+          />
+        </div>
+
+        <button type="submit" disabled={saving} className="btn-primary w-full">
+          {saving ? "Saving…" : shop ? "Update Shop" : "Create Shop"}
+        </button>
+      </form>
+    </div>
+  );
+}

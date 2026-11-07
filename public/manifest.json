@@ -1,0 +1,10 @@
+{
+  "name": "KhataLink",
+  "short_name": "KhataLink",
+  "description": "Digital Khata & Micro-Credit for local shops",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#059669",
+  "icons": []
+}
