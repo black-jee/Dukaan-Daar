@@ -45,8 +45,11 @@ Use two merchant accounts (M1, M2) and two customer accounts (C1, C2). Create on
 
 ## Release blockers
 
-- Supabase project access for the new project must be granted to the connected integration before live schema inspection or deployment verification.
+- The connected Supabase project (`wzsvvwhvbbbrxuaqdyue`) was inspected read-only and currently has no application tables or recorded migrations. The initial schema and hardening migration still need isolated validation before any live application.
 - The hardening migration has been committed but has **not** been applied to the live database.
+- Signup currently permits a user-selected `merchant` role. Confirm whether merchant self-registration is intended or whether merchant accounts require approval; do not treat a client-supplied role as an approval workflow.
+- Public active-shop reads currently expose all shop columns, including address, coordinates, and UPI ID. Confirm the intended public fields and reduce column exposure if any of these are private.
+- Account deletion/retention is not designed yet. Cascading deletes from profiles/shops can conflict with the immutable transaction delete trigger; define a compliant anonymization/retention process before storing real financial data.
 - CI has been added, but a passing GitHub Actions run must be observed before calling the branch green.
 - The repository has no committed npm lockfile yet; generate and commit a reviewed `package-lock.json`, then switch CI/deployment installs to `npm ci` for reproducible builds.
 - No production host/domain or deployment environment has been configured or verified yet.
