@@ -66,22 +66,34 @@ export default function ShopSetupPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setError("Please sign in again to save your shop.");
+      setSaving(false);
+      return;
+    }
 
-    const payload = {
-      name,
+    const editablePayload = {
+      name: name.trim(),
       category,
-      address: address || null,
-      upi_id: upiId || null,
-      description: description || null,
-      owner_id: user.id,
+      address: address.trim() || null,
+      upi_id: upiId.trim() || null,
+      description: description.trim() || null,
     };
 
     let result;
     if (shop) {
-      result = await supabase.from("shops").update(payload).eq("id", shop.id).select().single();
+      result = await supabase
+        .from("shops")
+        .update(editablePayload)
+        .eq("id", shop.id)
+        .select()
+        .single();
     } else {
-      result = await supabase.from("shops").insert(payload).select().single();
+      result = await supabase
+        .from("shops")
+        .insert({ ...editablePayload, owner_id: user.id })
+        .select()
+        .single();
     }
 
     if (result.error) {
