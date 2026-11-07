@@ -37,25 +37,19 @@ A fully functional dual-role (Merchant + Customer) web application for tracking 
 ## Quick Start (Local)
 
 ### 1. Create Supabase Project
-1. Go to [supabase.com](https://supabase.com) → New Project
-2. Copy **Project URL** and **anon public** key
-3. (Optional but recommended) Disable email confirmation for faster testing:  
-   Authentication → Providers → Email → turn off “Confirm email”
+1. Create a new Supabase project.
+2. Copy its Project URL and publishable key.
+3. Keep email confirmation enabled for production; configure Auth redirect URLs for the app's local and deployed origins.
 
-### 2. Run the Database Schema
-In Supabase Dashboard → **SQL Editor** → New query → paste the entire contents of:
+### 2. Apply Database Migrations
+The repository now contains an ordered, CLI-managed migration chain:
 
-```
-supabase/schema.sql
-```
+- `supabase/migrations/20261108000000_initial_schema.sql`
+- `supabase/migrations/20261108000100_harden_financial_ledger.sql`
 
-Run it to create the initial tables. Then run the production-hardening migration:
+For a disposable local Supabase stack, run `supabase start` and `supabase db reset` to replay the migrations. For a remote project, authenticate and link the intended project, then inspect the proposed changes with `supabase db push --dry-run --remote`. Applying with `supabase db push --remote` changes that remote database; do not run it against the connected project until the owner explicitly approves the live migration.
 
-```
-supabase/migrations/20261108000100_harden_financial_ledger.sql
-```
-
-Run both scripts in order on a new, empty project. The hardening migration removes direct client writes to balances and ledger rows, restricts transaction creation to the shop owner, rejects overpayments, and adds audited compensating reversals. Do not expose the app to real users until the migration has been applied and the security tests have passed.
+The hardening migration removes direct client writes to balances and ledger rows, scopes financial records to participants, restricts transaction creation to the shop owner, rejects overpayments, adds idempotency and audited compensating reversals, and limits anonymous shop reads to approved public columns. Do not accept real users until the migration chain, Auth/JWT isolation, storage, backup/restore, and functional acceptance tests are verified.
 
 ### 3. Clone / Extract this repo
 ```bash
@@ -137,7 +131,7 @@ khatalink/
 │   ├── components/
 │   ├── lib/supabase/           # Browser + server clients + middleware
 │   └── types/database.ts       # Generated-style types
-├── supabase/schema.sql         # Full Postgres schema + RLS + RPC
+├── supabase/config.toml       # Supabase CLI project config\n├── supabase/migrations/       # Ordered, versioned database migrations\n├── supabase/tests/            # Disposable PostgreSQL integration tests\n├── supabase/schema.sql       # Reference bootstrap schema
 └── ...
 ```
 
