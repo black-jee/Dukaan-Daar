@@ -72,6 +72,25 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: khatalink_test
 
+      - name: Verify concurrent duplicate submissions serialize
+        run: |
+          export PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres PGDATABASE=khatalink_test
+          SQL="select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',false); select public.add_transaction('30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001',5.00,'credit','40000000-0000-4000-8000-000000000004','parallel retry');"
+          psql -v ON_ERROR_STOP=1 -c "$SQL" &
+          first_pid=$!
+          psql -v ON_ERROR_STOP=1 -c "$SQL" &
+          second_pid=$!
+          wait "$first_pid"
+          wait "$second_pid"
+          result=$(psql -At -v ON_ERROR_STOP=1 -c "select ((select count(*) from public.transactions where idempotency_key='40000000-0000-4000-8000-000000000004') = 1 and (select current_balance from public.shop_customers where shop_id='30000000-0000-4000-8000-000000000001' and customer_id='20000000-0000-4000-8000-000000000001') = 30.00);")
+          test "$result" = "t"
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
   verify:
     name: Typecheck, lint and build
     runs-on: ubuntu-latest
