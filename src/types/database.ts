@@ -285,6 +285,9 @@ export interface Database {
         Returns: Database["public"]["Tables"]["transactions"]["Row"];
       };
     };
+    Views: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
 
