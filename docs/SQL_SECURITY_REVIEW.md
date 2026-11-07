@@ -17,15 +17,15 @@ The Supabase project `wzsvvwhvbbbrxuaqdyue` is healthy, but its `public` schema 
 
 ### High: immutable ledger conflicts with cascading account/shop deletion
 
-The base schema defines cascading foreign keys from profiles/shops to ledger-related rows, while the hardening migration blocks every transaction UPDATE/DELETE and reversal foreign keys use RESTRICT. Normal user/shop deletion can therefore fail partway through cascades. Define an explicit retention and anonymization workflow before real financial records are stored; do not solve this by allowing ordinary clients to delete ledger rows.
+The base schema defines cascading foreign keys from profiles/shops to ledger-related rows, while the hardening migration blocks every transaction UPDATE/DELETE and reversal foreign keys use RESTRICT. Normal user/shop deletion can therefore fail partway through cascades. Until a tested retention/anonymization workflow exists, accounts and shops must be deactivated rather than hard-deleted; preserve ledger rows and their foreign-key anchors. Before real financial data is stored, design a controlled PII-anonymization process that preserves financial audit records and satisfies applicable retention obligations.
 
 ### Medium: signup role default needs a complete policy
 
-The hardening trigger now defaults missing/invalid metadata to `customer`, but it still accepts `merchant` from client metadata. See the merchant authorization blocker above.
+Merchant self-registration is an explicit product decision. The trigger accepts `merchant` or `customer`, defaults missing/invalid metadata to `customer`, and the client has no grant to update the persisted role.
 
 ### Medium: SQL migration has not been replay-tested
 
-The initial schema and hardening migration have only been statically reviewed. They must be tested together against a disposable PostgreSQL/Supabase environment before any production execution. The live project must remain untouched during this test.
+The initial schema and hardening migration replayed successfully together in the disposable PostgreSQL 17 GitHub Actions service. Ledger/RLS/idempotency/reversal smoke tests and concurrent duplicate-submission verification passed. This isolated test does not replace final Supabase Auth/JWT, storage, backup/restore, or real-account acceptance testing; the live project remains untouched.
 
 ## Test cases required before release
 
@@ -37,14 +37,14 @@ The initial schema and hardening migration have only been statically reviewed. T
 - Anonymous shop discovery returns only approved public fields.
 - Duplicate idempotency key with identical payload replays exactly once.
 - Reuse of an idempotency key with a different payload fails.
-- Concurrent credit/payment requests serialize and preserve the correct balance (not yet covered by the first smoke-test batch; add a two-session concurrency test before release).
+- Two concurrent duplicate submissions with the same idempotency key serialize and produce exactly one ledger row and one balance change. Broader concurrent credit-limit boundary testing remains required.
 - Overpayment, blocked/paused customer credit, and credit-limit boundaries behave as intended.
 - Reversal is single-use, audited, and correct after subsequent transactions.
 - Account deletion/retention does not mutate or erase the immutable ledger.
 
 ## Environment and verification blockers
 
-- A disposable PostgreSQL 17 service and Supabase Auth compatibility bootstrap run in GitHub Actions. Database job passed in runs #50 and #51; it uses an ephemeral CI container, not a Supabase development branch or the live project.
+- A disposable PostgreSQL 17 service and Supabase Auth compatibility bootstrap run in GitHub Actions. The database job passed in runs #50 and #51; it uses an ephemeral CI container, not a Supabase development branch or the live project.
 - No dependency lockfile is committed; CI still uses `npm install`, not reproducible `npm ci`.
 - Application CI failed typechecking on run #50. A follow-up fix converts the generated database interface to a type alias to preserve relationship tuple types; verification is running on commit `47b428def60500ec874e0347e2036f701f398009`. Lint and build have not yet been confirmed on that commit.
 - No live migration, PR merge, or deployment has been performed.
