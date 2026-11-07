@@ -1,21 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Profile, ShopCustomer, Transaction, Shop } from "@/types/database";
+import type { Profile, ShopCustomer, Transaction } from "@/types/database";
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params.customerId as string;
-  const router = useRouter();
   const supabase = createClient();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [link, setLink] = useState<ShopCustomer | null>(null);
-  const [shop, setShop] = useState<Shop | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [creditLimit, setCreditLimit] = useState("");
@@ -45,7 +43,6 @@ export default function CustomerDetailPage() {
       setLoading(false);
       return;
     }
-    setShop(shops[0]);
 
     const { data: sc } = await supabase
       .from("shop_customers")
@@ -160,7 +157,7 @@ export default function CustomerDetailPage() {
             <select
               className="input mt-1"
               value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
+              onChange={(e) => setStatus(e.target.value as "active" | "blocked" | "paused")}
             >
               <option value="active">Active</option>
               <option value="paused">Paused</option>
