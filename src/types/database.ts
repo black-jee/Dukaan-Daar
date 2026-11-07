@@ -111,6 +111,32 @@ export interface Database {
           joined_at?: string;
         };
       };
+      transaction_reversals: {
+        Row: {
+          id: string;
+          original_transaction_id: string;
+          reversal_transaction_id: string;
+          reversed_by: string;
+          reason: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          original_transaction_id: string;
+          reversal_transaction_id: string;
+          reversed_by: string;
+          reason: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          original_transaction_id?: string;
+          reversal_transaction_id?: string;
+          reversed_by?: string;
+          reason?: string;
+          created_at?: string;
+        };
+      };
       transactions: {
         Row: {
           id: string;
@@ -167,6 +193,13 @@ export interface Database {
           p_amount: number;
           p_type: "credit" | "payment";
           p_note?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["transactions"]["Row"];
+      };
+      reverse_transaction: {
+        Args: {
+          p_transaction_id: string;
+          p_reason: string;
         };
         Returns: Database["public"]["Tables"]["transactions"]["Row"];
       };
