@@ -33,11 +33,20 @@ function EntryForm() {
     load();
   }, []);
 
+  // A changed payload is a new transaction intent. Preserve the key only for
+  // retries of the exact same request after an ambiguous network failure.
+  useEffect(() => {
+    setIdempotencyKey("");
+  }, [selectedCustomerId, amount, note, type]);
+
   async function load() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const { data: shops } = await supabase
       .from("shops")
@@ -87,7 +96,7 @@ function EntryForm() {
     if (error) {
       setError(error.message);
     } else {
-      setIdempotencyKey(globalThis.crypto.randomUUID());
+      setIdempotencyKey("");
       setSuccess(true);
       // Haptic / sound feedback simulation
       if (navigator.vibrate) navigator.vibrate(50);
