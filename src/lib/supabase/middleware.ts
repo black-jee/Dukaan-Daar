@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import type { Database } from "@/types/database";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     supabaseUrl,
     supabaseKey,
     {
