@@ -6,7 +6,20 @@ begin;
 create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 
+-- Normalize nullable prototype columns before enforcing production invariants.
+update public.shop_customers
+set credit_limit = coalesce(credit_limit, 500.00),
+    current_balance = coalesce(current_balance, 0.00),
+    status = coalesce(status, 'active')
+where credit_limit is null or current_balance is null or status is null;
+
 alter table public.shop_customers
+  alter column credit_limit set default 500.00,
+  alter column credit_limit set not null,
+  alter column current_balance set default 0.00,
+  alter column current_balance set not null,
+  alter column status set default 'active',
+  alter column status set not null,
   add constraint shop_customers_credit_limit_nonnegative check (credit_limit >= 0),
   add constraint shop_customers_balance_nonnegative check (current_balance >= 0);
 
@@ -283,7 +296,8 @@ begin
 
   select s.owner_id into v_owner_id
   from public.shops s
-  where s.id = p_shop_id and s.is_active = true;
+  where s.id = p_shop_id and s.is_active = true
+  for update;
 
   if v_owner_id is null then
     raise exception 'Active shop not found' using errcode = 'P0002';
