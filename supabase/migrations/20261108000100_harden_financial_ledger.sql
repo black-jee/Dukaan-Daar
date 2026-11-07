@@ -316,6 +316,24 @@ begin
     raise exception 'Only the shop owner can record transactions' using errcode = '42501';
   end if;
 
+  -- Fast replay path for an already committed request.
+  select * into v_tx
+  from public.transactions t
+  where t.idempotency_key = p_idempotency_key;
+
+  if found then
+      if v_tx.shop_id <> p_shop_id
+         or v_tx.customer_id <> p_customer_id
+         or v_tx.amount <> p_amount
+         or v_tx.type <> p_type
+         or v_tx.note is distinct from nullif(btrim(p_note), '')
+         or v_tx.created_by <> v_actor then
+        raise exception 'Idempotency key was already used for a different request'
+          using errcode = '23505';
+      end if;
+      return v_tx;
+  end if;
+
   select * into v_sc
   from public.shop_customers sc
   where sc.shop_id = p_shop_id and sc.customer_id = p_customer_id
@@ -323,6 +341,24 @@ begin
 
   if not found then
     raise exception 'Customer is not linked to this shop' using errcode = 'P0002';
+  end if;
+
+  -- Recheck after locking the customer row to serialize concurrent retries.
+  select * into v_tx
+  from public.transactions t
+  where t.idempotency_key = p_idempotency_key;
+
+  if found then
+      if v_tx.shop_id <> p_shop_id
+         or v_tx.customer_id <> p_customer_id
+         or v_tx.amount <> p_amount
+         or v_tx.type <> p_type
+         or v_tx.note is distinct from nullif(btrim(p_note), '')
+         or v_tx.created_by <> v_actor then
+        raise exception 'Idempotency key was already used for a different request'
+          using errcode = '23505';
+      end if;
+      return v_tx;
   end if;
 
   if p_type = 'credit' then
