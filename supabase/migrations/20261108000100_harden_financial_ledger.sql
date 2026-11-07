@@ -119,7 +119,11 @@ grant select on public.profiles to authenticated;
 grant update (full_name, phone, avatar_url) on public.profiles to authenticated;
 
 revoke all on public.shops from anon, authenticated;
-grant select on public.shops to anon, authenticated;
+-- Anonymous discovery receives only product-approved public fields; ownership and
+-- operational metadata remain unavailable to unauthenticated clients.
+grant select (id, name, category, address, latitude, longitude, upi_id, description)
+  on public.shops to anon;
+grant select on public.shops to authenticated;
 grant insert on public.shops to authenticated;
 grant update (name, category, address, latitude, longitude, upi_id, description, is_active)
   on public.shops to authenticated;
