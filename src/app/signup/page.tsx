@@ -43,15 +43,15 @@ function SignupForm() {
       return;
     }
 
-    // Profile is auto-created by trigger. If email confirmation is required,
-    // user needs to confirm. For development, disable email confirmation in Supabase.
-    if (data.user) {
+    // A user may exist without an active session when email confirmation is enabled.
+    if (data.session) {
       router.push("/dashboard");
       router.refresh();
-    } else {
-      setError("Check your email to confirm the account.");
-      setLoading(false);
+      return;
     }
+
+    setError("Account created. Check your email to confirm your address, then sign in.");
+    setLoading(false);
   }
 
   return (
