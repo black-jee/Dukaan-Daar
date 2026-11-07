@@ -274,7 +274,7 @@ begin
     raise exception 'Amount must be positive and have at most two decimal places'
       using errcode = '22023';
   end if;
-  if p_type not in ('credit', 'payment') then
+  if p_type is null or p_type not in ('credit', 'payment') then
     raise exception 'Invalid transaction type' using errcode = '22023';
   end if;
   if p_note is not null and length(p_note) > 500 then
