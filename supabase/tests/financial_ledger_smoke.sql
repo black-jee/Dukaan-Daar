@@ -44,6 +44,12 @@ begin
   if not has_column_privilege(current_user, 'public.shops', 'upi_id', 'SELECT') then
     raise exception 'Expected public UPI visibility per approved product decision';
   end if;
+  if has_column_privilege(current_user, 'public.shops', 'owner_id', 'SELECT') then
+    raise exception 'Anonymous users must not read internal shop ownership metadata';
+  end if;
+  if has_column_privilege(current_user, 'public.shops', 'is_active', 'SELECT') then
+    raise exception 'Anonymous users must not read internal shop activation metadata';
+  end if;
 end;
 $$;
 reset role;
