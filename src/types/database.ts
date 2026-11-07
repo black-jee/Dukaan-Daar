@@ -83,15 +83,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "shops_owner_id_fkey";
-            columns: ["owner_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
 
       };
       shop_customers: {
@@ -122,22 +114,7 @@ export type Database = {
           status?: "active" | "blocked" | "paused";
           joined_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "shop_customers_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "shop_customers_shop_id_fkey";
-            columns: ["shop_id"];
-            isOneToOne: false;
-            referencedRelation: "shops";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
 
       };
       transaction_reversals: {
@@ -165,29 +142,7 @@ export type Database = {
           reason?: string;
           created_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "transaction_reversals_original_transaction_id_fkey";
-            columns: ["original_transaction_id"];
-            isOneToOne: false;
-            referencedRelation: "transactions";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "transaction_reversals_reversal_transaction_id_fkey";
-            columns: ["reversal_transaction_id"];
-            isOneToOne: false;
-            referencedRelation: "transactions";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "transaction_reversals_reversed_by_fkey";
-            columns: ["reversed_by"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
 
       };
       transactions: {
@@ -239,29 +194,7 @@ export type Database = {
           reversed_at?: string | null;
           reverse_reason?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "transactions_created_by_fkey";
-            columns: ["created_by"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "transactions_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "transactions_shop_id_fkey";
-            columns: ["shop_id"];
-            isOneToOne: false;
-            referencedRelation: "shops";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
 
       };
     };
@@ -275,14 +208,44 @@ export type Database = {
           p_idempotency_key: string;
           p_note?: string | null;
         };
-        Returns: Database["public"]["Tables"]["transactions"]["Row"];
+        Returns: {
+          id: string;
+          shop_id: string;
+          customer_id: string;
+          idempotency_key: string | null;
+          amount: number;
+          type: "credit" | "payment";
+          note: string | null;
+          running_balance: number;
+          created_by: string;
+          created_at: string;
+          is_reversed: boolean;
+          reversed_by: string | null;
+          reversed_at: string | null;
+          reverse_reason: string | null;
+        };
       };
       reverse_transaction: {
         Args: {
           p_transaction_id: string;
           p_reason: string;
         };
-        Returns: Database["public"]["Tables"]["transactions"]["Row"];
+        Returns: {
+          id: string;
+          shop_id: string;
+          customer_id: string;
+          idempotency_key: string | null;
+          amount: number;
+          type: "credit" | "payment";
+          note: string | null;
+          running_balance: number;
+          created_by: string;
+          created_at: string;
+          is_reversed: boolean;
+          reversed_by: string | null;
+          reversed_at: string | null;
+          reverse_reason: string | null;
+        };
       };
     };
     Views: Record<string, never>;
