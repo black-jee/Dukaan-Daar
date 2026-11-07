@@ -3,7 +3,7 @@
 A fully functional dual-role (Merchant + Customer) web application for tracking micro-credit at local shops (tea stalls, kirana, paan shops, etc.).
 
 **Stack:** Next.js 15 (App Router) + TypeScript + Tailwind CSS + Supabase (Auth, Postgres, Realtime, RLS)  
-**Deploy target:** Cloudflare Pages (or Vercel / any Node host)
+**Deploy target:** Vercel or Cloudflare Workers using the current OpenNext adapter
 
 ---
 
@@ -49,7 +49,13 @@ In Supabase Dashboard → **SQL Editor** → New query → paste the entire cont
 supabase/schema.sql
 ```
 
-Run it. This creates tables, RLS policies, the `add_transaction` function, and enables Realtime.
+Run it to create the initial tables. Then run the production-hardening migration:
+
+```
+supabase/migrations/20261108000100_harden_financial_ledger.sql
+```
+
+Run both scripts in order on a new, empty project. The hardening migration removes direct client writes to balances and ledger rows, restricts transaction creation to the shop owner, rejects overpayments, and adds audited compensating reversals. Do not expose the app to real users until the migration has been applied and the security tests have passed.
 
 ### 3. Clone / Extract this repo
 ```bash
@@ -60,7 +66,7 @@ cp .env.example .env.local
 Edit `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
 ### 4. Install & Run
@@ -105,8 +111,8 @@ Then deploy the `.vercel/output/static` folder (or follow current Cloudflare Nex
 | Variable | Required | Notes |
 |----------|----------|-------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Anon / public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | No | Only if you later add admin scripts |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Supabase publishable key (preferred) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Fallback | Legacy anon key for existing projects |
 
 ---
 
@@ -144,15 +150,18 @@ To enable Phone OTP:
 2. Connect Twilio / MessageBird / Vonage
 3. Update the login/signup forms to use `signInWithOtp({ phone })`
 
-The schema already stores `phone` on profiles.
+The schema already stores `phone` on profiles. SMS delivery may incur provider charges; keep it disabled until configured and budgeted.
 
 ---
 
 ## Security Notes
-- All data access is protected by Row Level Security.
-- The `add_transaction` function runs as `SECURITY DEFINER` but still checks `auth.uid()`.
-- Customers cannot see other customers’ balances or shop totals.
-- Transactions are append-only (reversals are recorded, not deleted).
+- Apply the production-hardening migration before accepting real users.
+- All exposed tables use Row Level Security and least-privilege grants.
+- The service-role/secret key must never be placed in browser code or committed to Git.
+- Only a shop owner can record ledger transactions; customers cannot mark their own UPI payments as settled.
+- Overpayments are rejected rather than silently clipped.
+- Ledger entries are append-only; corrections use a separate reversal record and compensating transaction.
+- Review Supabase Security Advisor and Performance Advisor before launch.
 
 ---
 
