@@ -37,6 +37,8 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
+
       };
       shops: {
         Row: {
@@ -81,6 +83,16 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "shops_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+
       };
       shop_customers: {
         Row: {
@@ -110,6 +122,23 @@ export interface Database {
           status?: "active" | "blocked" | "paused";
           joined_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "shop_customers_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shop_customers_shop_id_fkey";
+            columns: ["shop_id"];
+            isOneToOne: false;
+            referencedRelation: "shops";
+            referencedColumns: ["id"];
+          },
+        ];
+
       };
       transaction_reversals: {
         Row: {
@@ -136,6 +165,30 @@ export interface Database {
           reason?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "transaction_reversals_original_transaction_id_fkey";
+            columns: ["original_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transaction_reversals_reversal_transaction_id_fkey";
+            columns: ["reversal_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transaction_reversals_reversed_by_fkey";
+            columns: ["reversed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+
       };
       transactions: {
         Row: {
@@ -183,6 +236,30 @@ export interface Database {
           reversed_at?: string | null;
           reverse_reason?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "transactions_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_shop_id_fkey";
+            columns: ["shop_id"];
+            isOneToOne: false;
+            referencedRelation: "shops";
+            referencedColumns: ["id"];
+          },
+        ];
+
       };
     };
     Functions: {
