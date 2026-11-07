@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: {
@@ -289,7 +289,7 @@ export interface Database {
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
-}
+};
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Shop = Database["public"]["Tables"]["shops"]["Row"];
