@@ -307,7 +307,7 @@ begin
   select s.owner_id into v_owner_id
   from public.shops s
   where s.id = p_shop_id and s.is_active = true
-  for update;
+  for share;
 
   if v_owner_id is null then
     raise exception 'Active shop not found' using errcode = 'P0002';
