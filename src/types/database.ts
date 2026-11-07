@@ -195,6 +195,7 @@ export interface Database {
           id: string;
           shop_id: string;
           customer_id: string;
+          idempotency_key: string | null;
           amount: number;
           type: "credit" | "payment";
           note: string | null;
@@ -210,6 +211,7 @@ export interface Database {
           id?: string;
           shop_id: string;
           customer_id: string;
+          idempotency_key?: string | null;
           amount: number;
           type: "credit" | "payment";
           note?: string | null;
@@ -225,6 +227,7 @@ export interface Database {
           id?: string;
           shop_id?: string;
           customer_id?: string;
+          idempotency_key?: string | null;
           amount?: number;
           type?: "credit" | "payment";
           note?: string | null;
@@ -269,6 +272,7 @@ export interface Database {
           p_customer_id: string;
           p_amount: number;
           p_type: "credit" | "payment";
+          p_idempotency_key: string;
           p_note?: string | null;
         };
         Returns: Database["public"]["Tables"]["transactions"]["Row"];
