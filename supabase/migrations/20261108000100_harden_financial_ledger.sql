@@ -33,6 +33,10 @@ create table if not exists public.transaction_reversals (
   constraint transaction_reversals_distinct_transactions check (original_transaction_id <> reversal_transaction_id)
 );
 
+alter table public.transactions
+  add column idempotency_key uuid,
+  add constraint transactions_idempotency_key_key unique (idempotency_key);
+
 create index if not exists idx_transactions_customer_created
   on public.transactions(customer_id, created_at desc);
 create index if not exists idx_shop_customers_customer_shop
@@ -260,11 +264,14 @@ using (
 
 -- Only a shop owner may record a credit or a payment. Customer-side UPI launches
 -- are not proof of settlement; the merchant records payment after verification.
+drop function if exists public.add_transaction(uuid, uuid, numeric, text, text);
+
 create or replace function public.add_transaction(
   p_shop_id uuid,
   p_customer_id uuid,
   p_amount numeric,
   p_type text,
+  p_idempotency_key uuid,
   p_note text default null
 )
 returns public.transactions
@@ -289,6 +296,9 @@ begin
   end if;
   if p_type is null or p_type not in ('credit', 'payment') then
     raise exception 'Invalid transaction type' using errcode = '22023';
+  end if;
+  if p_idempotency_key is null then
+    raise exception 'An idempotency key is required' using errcode = '22023';
   end if;
   if p_note is not null and length(p_note) > 500 then
     raise exception 'Note must be 500 characters or fewer' using errcode = '22023';
@@ -331,11 +341,31 @@ begin
   end if;
 
   insert into public.transactions (
-    shop_id, customer_id, amount, type, note, running_balance, created_by
+    shop_id, customer_id, amount, type, note, running_balance, created_by, idempotency_key
   ) values (
     p_shop_id, p_customer_id, p_amount, p_type, nullif(btrim(p_note), ''),
-    v_new_balance, v_actor
-  ) returning * into v_tx;
+    v_new_balance, v_actor, p_idempotency_key
+  )
+  on conflict (idempotency_key) do nothing
+  returning * into v_tx;
+
+  if not found then
+    select * into v_tx
+    from public.transactions t
+    where t.idempotency_key = p_idempotency_key;
+
+    if v_tx.shop_id <> p_shop_id
+       or v_tx.customer_id <> p_customer_id
+       or v_tx.amount <> p_amount
+       or v_tx.type <> p_type
+       or v_tx.note is distinct from nullif(btrim(p_note), '')
+       or v_tx.created_by <> v_actor then
+      raise exception 'Idempotency key was already used for a different request'
+        using errcode = '23505';
+    end if;
+
+    return v_tx;
+  end if;
 
   update public.shop_customers
   set current_balance = v_new_balance
@@ -443,8 +473,8 @@ begin
 end;
 $$;
 
-revoke all on function public.add_transaction(uuid, uuid, numeric, text, text) from public, anon;
-grant execute on function public.add_transaction(uuid, uuid, numeric, text, text) to authenticated;
+revoke all on function public.add_transaction(uuid, uuid, numeric, text, uuid, text) from public, anon;
+grant execute on function public.add_transaction(uuid, uuid, numeric, text, uuid, text) to authenticated;
 revoke all on function public.reverse_transaction(uuid, text) from public, anon;
 grant execute on function public.reverse_transaction(uuid, text) to authenticated;
 
