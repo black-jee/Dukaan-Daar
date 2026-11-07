@@ -14,6 +14,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  database-migration-test:
+    name: Replay schema and test ledger security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: khatalink_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d khatalink_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Supabase-compatible test roles and Auth schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/ci_bootstrap.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Replay initial schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/schema.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Replay financial hardening migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000100_harden_financial_ledger.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Run ledger, idempotency, reversal and RLS smoke tests
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/financial_ledger_smoke.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
   verify:
     name: Typecheck, lint and build
     runs-on: ubuntu-latest
