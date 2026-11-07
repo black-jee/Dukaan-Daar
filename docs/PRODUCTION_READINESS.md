@@ -28,6 +28,7 @@ Use two merchant accounts (M1, M2) and two customer accounts (C1, C2). Create on
 - Only the owning merchant can call `add_transaction` or `reverse_transaction`.
 - Invalid types, zero/negative values, fractional paise, excessive amounts, overpayments, blocked/paused credit, and cross-shop/customer IDs are rejected.
 - Two concurrent credits at the credit limit serialize correctly and cannot exceed the limit.
+- Repeating the same transaction request with the same idempotency key returns the original row and does not change the balance twice.
 - A transaction cannot be reversed twice. Reversals append a compensating entry; the original entry remains unchanged.
 - Failed transactions leave both the ledger and cached balance unchanged.
 
@@ -47,6 +48,7 @@ Use two merchant accounts (M1, M2) and two customer accounts (C1, C2). Create on
 - Supabase project access for the new project must be granted to the connected integration before live schema inspection or deployment verification.
 - The hardening migration has been committed but has **not** been applied to the live database.
 - CI has been added, but a passing GitHub Actions run must be observed before calling the branch green.
+- The repository has no committed npm lockfile yet; generate and commit a reviewed `package-lock.json`, then switch CI/deployment installs to `npm ci` for reproducible builds.
 - No production host/domain or deployment environment has been configured or verified yet.
 - Backup/restore and Auth email delivery must be checked in the actual Supabase plan and project settings before launch.
 
