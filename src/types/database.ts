@@ -114,7 +114,22 @@ export type Database = {
           status?: "active" | "blocked" | "paused";
           joined_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "shop_customers_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shop_customers_shop_id_fkey";
+            columns: ["shop_id"];
+            isOneToOne: false;
+            referencedRelation: "shops";
+            referencedColumns: ["id"];
+          },
+        ];
 
       };
       transaction_reversals: {
