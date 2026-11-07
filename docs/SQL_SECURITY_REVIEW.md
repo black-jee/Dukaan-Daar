@@ -10,7 +10,7 @@ The Supabase project `wzsvvwhvbbbrxuaqdyue` is healthy, but its `public` schema 
 
 ## Product decisions confirmed
 
-- Merchant self-registration is intentionally open. The signup trigger accepts `merchant` metadata and the shop-owner policies use that persisted role. This is an explicit product choice, not an outstanding approval blocker. Client metadata must still be constrained to the two allowed roles, and customers must not be able to update their own role.
+- Merchant self-registration is intentionally open. The signup trigger accepts `merchant` metadata, constrains values to `merchant` or `customer`, and defaults invalid/missing values to `customer`. Client updates cannot modify the persisted role.
 - Public discovery intentionally exposes shop name, category, address, latitude/longitude, UPI ID, and description. The current active-shop read policy and column grants match this decision. Financial records and customer data remain participant-scoped.
 
 ## Release blockers
@@ -44,9 +44,9 @@ The initial schema and hardening migration have only been statically reviewed. T
 
 ## Environment and verification blockers
 
-- A disposable PostgreSQL 17 service and Supabase Auth compatibility bootstrap have now been added to GitHub Actions. This uses an ephemeral CI container, not a Supabase development branch or the live project. The workflow result is pending; migration replay and smoke-test success are not yet verified.
+- A disposable PostgreSQL 17 service and Supabase Auth compatibility bootstrap run in GitHub Actions. Database job passed in runs #50 and #51; it uses an ephemeral CI container, not a Supabase development branch or the live project.
 - No dependency lockfile is committed; CI still uses `npm install`, not reproducible `npm ci`.
-- GitHub Actions run #42 was created for commit `fe520e97af2a2518f18960e80d0f4b1c3860d1ac`; its status was pending at the last check. Vercel was also pending.
+- Application CI failed typechecking on run #50. A follow-up fix converts the generated database interface to a type alias to preserve relationship tuple types; verification is running on commit `47b428def60500ec874e0347e2036f701f398009`. Lint and build have not yet been confirmed on that commit.
 - No live migration, PR merge, or deployment has been performed.
 
 ## Safety rule
