@@ -8,15 +8,12 @@ Scope: source review only. No SQL was executed against the connected production 
 
 The Supabase project `wzsvvwhvbbbrxuaqdyue` is healthy, but its `public` schema has no application tables and no recorded migrations. The repository schema and hardening migration have not been applied.
 
+## Product decisions confirmed
+
+- Merchant self-registration is intentionally open. The signup trigger accepts `merchant` metadata and the shop-owner policies use that persisted role. This is an explicit product choice, not an outstanding approval blocker. Client metadata must still be constrained to the two allowed roles, and customers must not be able to update their own role.
+- Public discovery intentionally exposes shop name, category, address, latitude/longitude, UPI ID, and description. The current active-shop read policy and column grants match this decision. Financial records and customer data remain participant-scoped.
+
 ## Release blockers
-
-### Critical: shop discovery exposes all shop columns
-
-The hardening migration grants `SELECT` on every column in `public.shops` to `anon` and `authenticated`, and the `shops_public_active` policy makes every column of active shops readable. The join page currently uses `.select("*")`. This exposes address, latitude/longitude, UPI ID, and description to unauthenticated callers. Decide the public data contract and implement a safe public projection (for example, a restricted view/RPC or explicit column grants with a compatible client query) before release.
-
-### High: merchant role is self-selected at signup
-
-The signup page sends `role` in user-controlled Auth metadata and the database trigger accepts `merchant`. The RLS shop-insert policy trusts that profile role. This means anyone can create a merchant account. This is acceptable only if open merchant registration is an intentional product rule. If approval is required, derive merchant authorization from a server-controlled approval/invitation flow; never trust client metadata for privilege elevation.
 
 ### High: immutable ledger conflicts with cascading account/shop deletion
 
@@ -35,20 +32,21 @@ The initial schema and hardening migration have only been statically reviewed. T
 - Fresh database: apply `supabase/schema.sql`, then the hardening migration in order.
 - Auth signup with missing, invalid, customer, and merchant metadata.
 - Customer cannot create shops or modify credit limits, balances, roles, or ledger rows.
+- Open merchant registration is accepted, but customer-to-merchant privilege escalation is denied.
 - Merchant cannot read or mutate another merchant's customers or ledger.
 - Anonymous shop discovery returns only approved public fields.
 - Duplicate idempotency key with identical payload replays exactly once.
 - Reuse of an idempotency key with a different payload fails.
-- Concurrent credit/payment requests serialize and preserve the correct balance.
+- Concurrent credit/payment requests serialize and preserve the correct balance (not yet covered by the first smoke-test batch; add a two-session concurrency test before release).
 - Overpayment, blocked/paused customer credit, and credit-limit boundaries behave as intended.
 - Reversal is single-use, audited, and correct after subsequent transactions.
 - Account deletion/retention does not mutate or erase the immutable ledger.
 
 ## Environment and verification blockers
 
-- No disposable database has been provisioned. Supabase development branches may incur additional usage charges, so none was created.
+- A disposable PostgreSQL 17 service and Supabase Auth compatibility bootstrap have now been added to GitHub Actions. This uses an ephemeral CI container, not a Supabase development branch or the live project. The workflow result is pending; migration replay and smoke-test success are not yet verified.
 - No dependency lockfile is committed; CI still uses `npm install`, not reproducible `npm ci`.
-- GitHub Actions has not produced a workflow run for the reviewed head; the Vercel check was pending at the last status check.
+- GitHub Actions run #42 was created for commit `fe520e97af2a2518f18960e80d0f4b1c3860d1ac`; its status was pending at the last check. Vercel was also pending.
 - No live migration, PR merge, or deployment has been performed.
 
 ## Safety rule
