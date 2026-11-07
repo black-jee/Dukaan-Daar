@@ -45,8 +45,8 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: khatalink_test
 
-      - name: Replay initial schema
-        run: psql -v ON_ERROR_STOP=1 -f supabase/schema.sql
+      - name: Replay initial schema migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000000_initial_schema.sql
         env:
           PGHOST: localhost
           PGPORT: 5432
