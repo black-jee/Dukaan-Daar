@@ -47,10 +47,10 @@ Use two merchant accounts (M1, M2) and two customer accounts (C1, C2). Create on
 
 - The connected Supabase project (`wzsvvwhvbbbrxuaqdyue`) was inspected read-only and currently has no application tables or recorded migrations. The initial schema and hardening migration still need isolated validation before any live application.
 - The hardening migration has been committed but has **not** been applied to the live database.
-- Signup currently permits a user-selected `merchant` role. Confirm whether merchant self-registration is intended or whether merchant accounts require approval; do not treat a client-supplied role as an approval workflow.
-- Public active-shop reads currently expose all shop columns, including address, coordinates, and UPI ID. Confirm the intended public fields and reduce column exposure if any of these are private.
-- Account deletion/retention is not designed yet. Cascading deletes from profiles/shops can conflict with the immutable transaction delete trigger; define a compliant anonymization/retention process before storing real financial data.
-- CI has been added, but a passing GitHub Actions run must be observed before calling the branch green.
+- Merchant self-registration is an explicit product decision. The signup trigger accepts only `merchant` or `customer` and defaults invalid/missing metadata to `customer`; authenticated users cannot update their own role.
+- Public active-shop discovery exposes name, category, address, coordinates, UPI ID, and description by explicit product decision. Financial records and customer information remain participant-scoped.
+- Account deletion/retention remains a release blocker. Do not hard-delete Auth users or shops while ledger rows reference their profiles/shops: cascading deletes conflict with the immutable transaction trigger and reversal foreign keys. Initial operational policy should be deactivation (disable sign-in, mark shops inactive, retain ledger and identity foreign-key anchors); design and test a controlled PII-anonymization/retention workflow before accepting real financial records.
+- The isolated PostgreSQL 17 CI job has passed schema replay, hardening migration replay, ledger/RLS/idempotency/reversal smoke tests, and concurrent duplicate-submission verification (workflow runs #50 and #51). The application typecheck/lint/build job is still pending verification after the latest Supabase type fix; the branch is not yet fully green.
 - The repository has no committed npm lockfile yet; generate and commit a reviewed `package-lock.json`, then switch CI/deployment installs to `npm ci` for reproducible builds.
 - No production host/domain or deployment environment has been configured or verified yet.
 - Backup/restore and Auth email delivery must be checked in the actual Supabase plan and project settings before launch.
