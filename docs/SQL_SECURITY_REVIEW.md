@@ -1,54 +1,42 @@
 # Static SQL and application security review
 
-Date: 2026-11-08
-Branch: `chore/production-readiness`
-Scope: source review only. No SQL was executed against the connected production Supabase project.
+Date: 2026-11-08  
+Branch: `chore/production-readiness`  
+Scope: source review and disposable PostgreSQL CI replay. No SQL was executed against the connected Supabase project.
 
 ## Confirmed live-project state
 
-The Supabase project `wzsvvwhvbbbrxuaqdyue` is healthy, but its `public` schema has no application tables and no recorded migrations. The repository schema and hardening migration have not been applied.
+The Supabase project `wzsvvwhvbbbrxuaqdyue` is healthy. Read-only checks confirm zero application tables and zero recorded migrations. The repository migrations have not been applied to the live project.
 
 ## Product decisions confirmed
 
-- Merchant self-registration is intentionally open. The signup trigger accepts `merchant` metadata, constrains values to `merchant` or `customer`, and defaults invalid/missing values to `customer`. Client updates cannot modify the persisted role.
-- Public discovery intentionally exposes shop name, category, address, latitude/longitude, UPI ID, and description. The current active-shop read policy and column grants match this decision. Financial records and customer data remain participant-scoped.
+- Merchant self-registration is intentionally open. The signup trigger accepts `merchant` or `customer` and defaults missing/invalid metadata to `customer`; authenticated clients cannot update their own role.
+- Public discovery intentionally exposes shop name, category, address, latitude/longitude, UPI ID, and description.
+- Anonymous SELECT is column-scoped to `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. The internal `owner_id` and `is_active` columns are not granted to `anon`. Authenticated users retain the table SELECT grant for owner/dashboard workflows.
+- Financial records and customer information remain participant-scoped.
 
-## Release blockers
+## Database migration chain and verification
 
-### High: immutable ledger conflicts with cascading account/shop deletion
+- `20261108000000_initial_schema.sql` is the baseline migration, copied from `supabase/schema.sql`.
+- `20261108000100_harden_financial_ledger.sql` applies least-privilege grants, participant-scoped RLS, immutable transaction rows, append-only reversal audit, merchant-only transaction RPCs, idempotency, and balance/credit-limit enforcement.
+- GitHub Actions replays the ordered migration files in a disposable PostgreSQL 17 service, then runs ledger/RLS/idempotency/reversal tests and concurrent duplicate-submission verification.
+- The current tested branch checkpoint passed the application typecheck, lint, production build, and database migration/security jobs.
+- These tests are not a substitute for real Supabase Auth/JWT, Storage, backup/restore, or real-account acceptance testing.
 
-The base schema defines cascading foreign keys from profiles/shops to ledger-related rows, while the hardening migration blocks every transaction UPDATE/DELETE and reversal foreign keys use RESTRICT. Normal user/shop deletion can therefore fail partway through cascades. Until a tested retention/anonymization workflow exists, accounts and shops must be deactivated rather than hard-deleted; preserve ledger rows and their foreign-key anchors. Before real financial data is stored, design a controlled PII-anonymization process that preserves financial audit records and satisfies applicable retention obligations.
+## High-priority design constraint: ledger retention
 
-### Medium: signup role default needs a complete policy
+The base schema uses cascading foreign keys from profiles/shops to ledger-related rows, while the hardening migration makes transactions immutable and reversal foreign keys restrictive. Hard deletion of Auth users or shops can therefore conflict with the ledger's audit requirements. Until a tested retention/anonymization workflow exists, deactivate accounts/shops and preserve ledger rows and their foreign-key anchors. Design and test controlled PII anonymization before real financial data is stored.
 
-Merchant self-registration is an explicit product decision. The trigger accepts `merchant` or `customer`, defaults missing/invalid metadata to `customer`, and the client has no grant to update the persisted role.
+## Remaining security and release work
 
-### Medium: SQL migration has not been replay-tested
-
-The initial schema and hardening migration replayed successfully together in the disposable PostgreSQL 17 GitHub Actions service. Ledger/RLS/idempotency/reversal smoke tests and concurrent duplicate-submission verification passed. This isolated test does not replace final Supabase Auth/JWT, storage, backup/restore, or real-account acceptance testing; the live project remains untouched.
-
-## Test cases required before release
-
-- Fresh database: apply `supabase/schema.sql`, then the hardening migration in order.
-- Auth signup with missing, invalid, customer, and merchant metadata.
-- Customer cannot create shops or modify credit limits, balances, roles, or ledger rows.
-- Open merchant registration is accepted, but customer-to-merchant privilege escalation is denied.
-- Merchant cannot read or mutate another merchant's customers or ledger.
-- Anonymous shop discovery returns only approved public fields.
-- Duplicate idempotency key with identical payload replays exactly once.
-- Reuse of an idempotency key with a different payload fails.
-- Two concurrent duplicate submissions with the same idempotency key serialize and produce exactly one ledger row and one balance change. Broader concurrent credit-limit boundary testing remains required.
-- Overpayment, blocked/paused customer credit, and credit-limit boundaries behave as intended.
-- Reversal is single-use, audited, and correct after subsequent transactions.
-- Account deletion/retention does not mutate or erase the immutable ledger.
-
-## Environment and verification blockers
-
-- A disposable PostgreSQL 17 service and Supabase Auth compatibility bootstrap run in GitHub Actions. The database job passed in runs #50 and #51; it uses an ephemeral CI container, not a Supabase development branch or the live project.
-- No dependency lockfile is committed; CI still uses `npm install`, not reproducible `npm ci`.
-- Application CI failed typechecking on run #50. A follow-up fix converts the generated database interface to a type alias to preserve relationship tuple types; verification is running on commit `47b428def60500ec874e0347e2036f701f398009`. Lint and build have not yet been confirmed on that commit.
-- No live migration, PR merge, or deployment has been performed.
+- Dependency installation reports 9 npm vulnerabilities (7 moderate, 2 high); detailed advisory paths and safe remediations remain to be reviewed.
+- No `package-lock.json` is committed; CI uses `npm install` rather than reproducible `npm ci`.
+- Real Supabase Auth/JWT tests with multiple accounts remain required.
+- Storage bucket access and object policies remain unverified.
+- Broader concurrent credit-limit boundary tests remain required.
+- Account deletion, PII retention, backup/restore, operational monitoring, UPI settlement controls, and full frontend acceptance remain release blockers.
+- Production host/domain, redirects, runtime configuration, and deployment remain unverified.
 
 ## Safety rule
 
-Do not apply the schema or migration to `wzsvvwhvbbbrxuaqdyue` until isolated replay tests, application tests, security tests, and explicit release approval are complete.
+Do not apply the migrations to `wzsvvwhvbbbrxuaqdyue` until isolated replay, application, security, and acceptance gates are complete and the owner explicitly approves the live change. Do not merge PR #1 or promote a deployment without that approval.
