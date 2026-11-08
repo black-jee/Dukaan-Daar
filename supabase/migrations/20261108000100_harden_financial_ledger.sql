@@ -1,5 +1,5 @@
 -- Production hardening for KhataLink.
--- Apply AFTER the initial schema.sql on a fresh project.
+-- Apply AFTER 20261108000000_initial_schema.sql on a fresh project.
 -- This migration intentionally removes direct client writes to financial state.
 begin;
 
