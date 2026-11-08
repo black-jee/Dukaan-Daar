@@ -139,7 +139,7 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
           <p className="mt-1 text-xs text-slate-500">This shop only</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 sm:text-sm"><TrendingUp className="h-4 w-4" /> Today's credit</div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 sm:text-sm"><TrendingUp className="h-4 w-4" /> Today&apos;s credit</div>
           <p className="amount mt-2 text-2xl text-slate-950">{formatCurrency(stats.todayCredit)}</p>
           <p className="mt-1 text-xs text-slate-500">Added today</p>
         </div>
