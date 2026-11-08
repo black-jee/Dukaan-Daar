@@ -28,14 +28,14 @@ export default function HomePage() {
             Your shop. Your customers. <span className="text-primary-700">Clear accounts.</span>
           </h1>
           <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            KhataLink helps local shops record credit and payments while customers keep track of every shop's balance separately.
+            KhataLink helps local shops record credit and payments while customers keep track of every shop&apos;s balance separately.
           </p>
           <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-2">
             <Link href="/signup?role=merchant" className="btn-primary min-h-14 justify-between px-5 text-base">
               <span className="flex items-center gap-2"><Store className="h-5 w-5" /> I run a shop</span><ArrowRight className="h-5 w-5" />
             </Link>
             <Link href="/signup?role=customer" className="btn-outline min-h-14 justify-between px-5 text-base">
-              <span className="flex items-center gap-2"><UserRound className="h-5 w-5" /> I'm a customer</span><ArrowRight className="h-5 w-5" />
+              <span className="flex items-center gap-2"><UserRound className="h-5 w-5" /> I&apos;m a customer</span><ArrowRight className="h-5 w-5" />
             </Link>
           </div>
           <p className="mt-5 text-sm text-slate-500">Free to get started · Works on your phone · No app installation needed</p>
@@ -57,7 +57,7 @@ export default function HomePage() {
                 <div className="mt-4 border-t border-slate-100 pt-3"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Shop balance</p><p className="amount mt-1 text-3xl text-emerald-700">₹0.00</p><p className="mt-1 text-xs font-semibold text-emerald-700">All settled</p></div>
               </div>
             </div>
-            <p className="mt-4 flex items-center justify-center gap-2 text-xs font-medium text-slate-500"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Each shop's balance stays independent</p>
+            <p className="mt-4 flex items-center justify-center gap-2 text-xs font-medium text-slate-500"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Each shop&apos;s balance stays independent</p>
           </div>
         </div>
       </section>
