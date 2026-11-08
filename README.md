@@ -1,9 +1,9 @@
 # KhataLink – Digital Khata & Micro-Credit Management
 
-A fully functional dual-role (Merchant + Customer) web application for tracking micro-credit at local shops (tea stalls, kirana, paan shops, etc.).
+KhataLink is a pre-production dual-role (Merchant + Customer) web application for tracking micro-credit at local shops (tea stalls, kirana, paan shops, etc.). Do not use it for real financial records until the release gates in `docs/PRODUCTION_READINESS.md` are complete.
 
 **Stack:** Next.js 15 (App Router) + TypeScript + Tailwind CSS + Supabase (Auth, Postgres, Realtime, RLS)  
-**Deploy target:** Cloudflare Pages (or Vercel / any Node host)
+**Recommended preview host:** Vercel (production deployment not yet verified)
 
 ---
 
@@ -37,19 +37,20 @@ A fully functional dual-role (Merchant + Customer) web application for tracking 
 ## Quick Start (Local)
 
 ### 1. Create Supabase Project
-1. Go to [supabase.com](https://supabase.com) → New Project
-2. Copy **Project URL** and **anon public** key
-3. (Optional but recommended) Disable email confirmation for faster testing:  
-   Authentication → Providers → Email → turn off “Confirm email”
+1. Create a new Supabase project.
+2. Copy its Project URL and publishable key.
+3. Keep email confirmation enabled for production; configure Auth redirect URLs for the app's local and deployed origins.
 
-### 2. Run the Database Schema
-In Supabase Dashboard → **SQL Editor** → New query → paste the entire contents of:
+### 2. Apply Database Migrations
+The repository now contains an ordered, CLI-managed migration chain:
 
-```
-supabase/schema.sql
-```
+- `supabase/migrations/20261108000000_initial_schema.sql`
+- `supabase/migrations/20261108000100_harden_financial_ledger.sql`
+- `supabase/migrations/20261108000200_prevent_financial_history_cascade_deletes.sql`
 
-Run it. This creates tables, RLS policies, the `add_transaction` function, and enables Realtime.
+For a disposable local Supabase stack, run `supabase start` and `supabase db reset` to replay the migrations. For a remote project, authenticate and link the intended project, then inspect the proposed changes with `supabase db push --dry-run --remote`. Applying with `supabase db push --remote` changes that remote database; do not run it against the connected project until the owner explicitly approves the live migration.
+
+The hardening migration removes direct client writes to balances and ledger rows, scopes financial records to participants, restricts transaction creation to the shop owner, rejects overpayments, adds idempotency and audited compensating reversals, and exposes shop discovery only through a restricted `public_shops` view. The third migration prevents privileged account/shop deletion from cascading into ledger history. Account deletion is blocked until a reviewed PII-retention workflow exists. Direct reads from `shops` are owner-scoped. Do not accept real users until the migration chain, Auth/JWT isolation, storage, backup/restore, and functional acceptance tests are verified.
 
 ### 3. Clone / Extract this repo
 ```bash
@@ -60,12 +61,12 @@ cp .env.example .env.local
 Edit `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
 ### 4. Install & Run
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -73,40 +74,18 @@ Open http://localhost:3000
 
 ---
 
-## Deploy to Cloudflare Pages
+## Deployment
 
-### Option A – Official Next.js on Cloudflare (recommended)
-1. Push this repo to GitHub
-2. In Cloudflare Dashboard → Workers & Pages → Create → Connect to Git
-3. Framework preset: **Next.js**
-4. Build command: `npx @cloudflare/next-on-pages@1` (or use OpenNext)
-5. Add environment variables:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-6. Deploy
+The application has a successful CI production build, but no hosting provider has been validated as a live release target yet. Vercel is the simplest standard Next.js deployment option: connect this GitHub repository, choose the Next.js preset, and configure the environment variables below. Use a preview deployment first and verify authentication redirects, cookies, protected routes, and database access before promoting production.
 
-**Simpler alternative for most users:**
-
-Use **Vercel** (zero-config for Next.js):
-```bash
-npm i -g vercel
-vercel
-```
-Add the same env vars in the Vercel dashboard.
-
-Or stay on Cloudflare with the community adapter:
-```bash
-npm install -D @cloudflare/next-on-pages
-npx @cloudflare/next-on-pages
-```
-Then deploy the `.vercel/output/static` folder (or follow current Cloudflare Next.js docs).
+Cloudflare Workers with the OpenNext adapter is an alternative, but it requires its own adapter/runtime configuration and has not been verified for this branch. Do not use the retired `@cloudflare/next-on-pages` instructions for this App Router application.
 
 ### Environment Variables (Production)
 | Variable | Required | Notes |
 |----------|----------|-------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Anon / public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | No | Only if you later add admin scripts |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Supabase publishable key (preferred) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Fallback | Legacy anon key for existing projects |
 
 ---
 
@@ -131,7 +110,7 @@ khatalink/
 │   ├── components/
 │   ├── lib/supabase/           # Browser + server clients + middleware
 │   └── types/database.ts       # Generated-style types
-├── supabase/schema.sql         # Full Postgres schema + RLS + RPC
+├── supabase/config.toml       # Supabase CLI project config\n├── supabase/migrations/       # Ordered, versioned database migrations\n├── supabase/tests/            # Disposable PostgreSQL integration tests\n├── supabase/schema.sql       # Deprecated comment-only pointer; use migrations
 └── ...
 ```
 
@@ -144,15 +123,20 @@ To enable Phone OTP:
 2. Connect Twilio / MessageBird / Vonage
 3. Update the login/signup forms to use `signInWithOtp({ phone })`
 
-The schema already stores `phone` on profiles.
+The schema already stores `phone` on profiles. SMS delivery may incur provider charges; keep it disabled until configured and budgeted.
 
 ---
 
 ## Security Notes
-- All data access is protected by Row Level Security.
-- The `add_transaction` function runs as `SECURITY DEFINER` but still checks `auth.uid()`.
-- Customers cannot see other customers’ balances or shop totals.
-- Transactions are append-only (reversals are recorded, not deleted).
+- Apply the complete ordered migration chain before accepting real users.
+- Public discovery uses `public_shops`; do not query the internal `shops` table from customer-facing pages.
+- Run `npm ci` for reproducible dependency installation. CI enforces `npm audit` and production-only audit gates.
+- All exposed tables use Row Level Security and least-privilege grants.
+- The service-role/secret key must never be placed in browser code or committed to Git.
+- Only a shop owner can record ledger transactions; customers cannot mark their own UPI payments as settled.
+- Overpayments are rejected rather than silently clipped.
+- Ledger entries are append-only; corrections use a separate reversal record and compensating transaction.
+- Review Supabase Security Advisor and Performance Advisor before launch.
 
 ---
 
@@ -167,4 +151,5 @@ The schema already stores `phone` on profiles.
 ---
 
 Built with the product specification for **Digital Khata & Micro-Credit Management System**.
-Ready to push to GitHub and connect your Supabase project.
+
+This branch remains pre-production. Live migrations, production deployment, and real financial use are blocked pending explicit approval and completion of the release checklist.

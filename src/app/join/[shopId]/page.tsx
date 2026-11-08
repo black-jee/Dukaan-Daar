@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Shop } from "@/types/database";
+import type { PublicShop } from "@/types/database";
 import Link from "next/link";
 
 export default function JoinShopPage() {
@@ -12,7 +12,7 @@ export default function JoinShopPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [shop, setShop] = useState<Shop | null>(null);
+  const [shop, setShop] = useState<PublicShop | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export default function JoinShopPage() {
       setUserId(user?.id || null);
 
       const { data: shopData } = await supabase
-        .from("shops")
+        .from("public_shops")
         .select("*")
         .eq("id", shopId)
         .single();
@@ -61,9 +61,6 @@ export default function JoinShopPage() {
     const { error } = await supabase.from("shop_customers").insert({
       shop_id: shopId,
       customer_id: userId,
-      credit_limit: 500,
-      current_balance: 0,
-      status: "active",
     });
 
     if (error) {

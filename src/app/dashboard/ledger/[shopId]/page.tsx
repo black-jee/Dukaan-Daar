@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Shop, ShopCustomer, Transaction } from "@/types/database";
+import type { PublicShop, ShopCustomer, Transaction } from "@/types/database";
 
 export default function LedgerPage() {
   const params = useParams();
   const shopId = params.shopId as string;
   const supabase = createClient();
 
-  const [shop, setShop] = useState<Shop | null>(null);
+  const [shop, setShop] = useState<PublicShop | null>(null);
   const [link, setLink] = useState<ShopCustomer | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ export default function LedgerPage() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: s } = await supabase.from("shops").select("*").eq("id", shopId).single();
+    const { data: s } = await supabase.from("public_shops").select("*").eq("id", shopId).single();
     setShop(s);
 
     const { data: sc } = await supabase

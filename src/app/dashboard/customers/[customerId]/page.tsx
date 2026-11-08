@@ -1,26 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Profile, ShopCustomer, Transaction, Shop } from "@/types/database";
+import type { Profile, ShopCustomer, Transaction } from "@/types/database";
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params.customerId as string;
-  const router = useRouter();
   const supabase = createClient();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [link, setLink] = useState<ShopCustomer | null>(null);
-  const [shop, setShop] = useState<Shop | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [creditLimit, setCreditLimit] = useState("");
   const [status, setStatus] = useState<"active" | "blocked" | "paused">("active");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -30,15 +29,20 @@ export default function CustomerDetailPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const { data: shops } = await supabase
       .from("shops")
       .select("*")
       .eq("owner_id", user.id)
       .limit(1);
-    if (!shops?.[0]) return;
-    setShop(shops[0]);
+    if (!shops?.[0]) {
+      setLoading(false);
+      return;
+    }
 
     const { data: sc } = await supabase
       .from("shop_customers")
@@ -74,16 +78,27 @@ export default function CustomerDetailPage() {
 
   async function updateSettings() {
     if (!link) return;
+    const parsedLimit = Number(creditLimit);
+    if (!Number.isFinite(parsedLimit) || parsedLimit < 0) {
+      setError("Enter a valid non-negative credit limit.");
+      return;
+    }
+
     setSaving(true);
-    await supabase
+    setError(null);
+    const { error: updateError } = await supabase
       .from("shop_customers")
-      .update({
-        credit_limit: Number(creditLimit),
-        status,
-      })
+      .update({ credit_limit: parsedLimit, status })
       .eq("id", link.id);
+
+    if (updateError) {
+      setError("Could not update customer settings. Please try again.");
+      setSaving(false);
+      return;
+    }
+
     setSaving(false);
-    load();
+    await load();
   }
 
   if (loading) {
@@ -96,6 +111,11 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{profile.full_name}</h1>
@@ -125,6 +145,8 @@ export default function CustomerDetailPage() {
             <label className="text-sm text-slate-500">Credit Limit</label>
             <input
               type="number"
+              min="0"
+              step="0.01"
               className="input mt-1"
               value={creditLimit}
               onChange={(e) => setCreditLimit(e.target.value)}
@@ -135,7 +157,7 @@ export default function CustomerDetailPage() {
             <select
               className="input mt-1"
               value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
+              onChange={(e) => setStatus(e.target.value as "active" | "blocked" | "paused")}
             >
               <option value="active">Active</option>
               <option value="paused">Paused</option>

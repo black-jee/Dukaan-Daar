@@ -27,16 +27,26 @@ function EntryForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState("");
 
   useEffect(() => {
     load();
   }, []);
 
+  // A changed payload is a new transaction intent. Preserve the key only for
+  // retries of the exact same request after an ambiguous network failure.
+  useEffect(() => {
+    setIdempotencyKey("");
+  }, [selectedCustomerId, amount, note, type]);
+
   async function load() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const { data: shops } = await supabase
       .from("shops")
@@ -71,17 +81,22 @@ function EntryForm() {
     setError(null);
     setSuccess(false);
 
-    const { data, error } = await supabase.rpc("add_transaction", {
+    const requestKey = idempotencyKey || globalThis.crypto.randomUUID();
+    setIdempotencyKey(requestKey);
+
+    const { error } = await supabase.rpc("add_transaction", {
       p_shop_id: shop.id,
       p_customer_id: selectedCustomerId,
       p_amount: Number(amount),
       p_type: type,
+      p_idempotency_key: requestKey,
       p_note: note || null,
     });
 
     if (error) {
       setError(error.message);
     } else {
+      setIdempotencyKey("");
       setSuccess(true);
       // Haptic / sound feedback simulation
       if (navigator.vibrate) navigator.vibrate(50);

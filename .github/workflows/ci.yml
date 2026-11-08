@@ -1,0 +1,206 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-migration-test:
+    name: Replay schema and test ledger security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: khatalink_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d khatalink_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Supabase-compatible test roles and Auth schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/ci_bootstrap.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Replay initial schema migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000000_initial_schema.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Replay financial hardening migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000100_harden_financial_ledger.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Prevent parent-row deletion from cascading into ledger history
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000200_prevent_financial_history_cascade_deletes.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Run ledger, idempotency, reversal and RLS smoke tests
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/financial_ledger_smoke.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Verify concurrent duplicate submissions serialize
+        run: |
+          export PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres PGDATABASE=khatalink_test
+          SQL="select set_config('request.jwt.claims','{\"sub\":\"10000000-0000-4000-8000-000000000001\",\"role\":\"authenticated\",\"aud\":\"authenticated\"}',false); select public.add_transaction('30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001',5.00,'credit','40000000-0000-4000-8000-000000000004','parallel retry');"
+          psql -v ON_ERROR_STOP=1 -c "$SQL" &
+          first_pid=$!
+          psql -v ON_ERROR_STOP=1 -c "$SQL" &
+          second_pid=$!
+          wait "$first_pid"
+          wait "$second_pid"
+          result=$(psql -At -v ON_ERROR_STOP=1 -c "select ((select count(*) from public.transactions where idempotency_key='40000000-0000-4000-8000-000000000004') = 1 and (select current_balance from public.shop_customers where shop_id='30000000-0000-4000-8000-000000000001' and customer_id='20000000-0000-4000-8000-000000000001') = 30.00);")
+          test "$result" = "t"
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Verify disposable database backup and restore
+        run: |
+          set -euo pipefail
+          container_id=$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n1)
+          test -n "$container_id"
+          docker exec -i "$container_id" bash -s <<'SCRIPT'
+          set -euo pipefail
+          summary_sql="select (select count(*) from public.transactions)::text || ':' || (select count(*) from public.transaction_reversals)::text || ':' || coalesce((select sum(current_balance)::text from public.shop_customers), '0');"
+          expected=$(psql -U postgres -At -v ON_ERROR_STOP=1 -d khatalink_test -c "$summary_sql")
+          pg_dump -U postgres --format=custom --file=/tmp/khatalink-test.dump khatalink_test
+          createdb -U postgres khatalink_restore
+          pg_restore -U postgres --exit-on-error --no-owner -d khatalink_restore /tmp/khatalink-test.dump
+          actual=$(psql -U postgres -At -v ON_ERROR_STOP=1 -d khatalink_restore -c "$summary_sql")
+          test "$actual" = "$expected"
+          restrictions=$(psql -U postgres -At -v ON_ERROR_STOP=1 -d khatalink_restore -c "select count(*) from pg_constraint where conname in ('profiles_id_fkey','shops_owner_id_fkey','shop_customers_shop_id_fkey','shop_customers_customer_id_fkey','transactions_shop_id_fkey','transactions_customer_id_fkey') and confdeltype='r';")
+          test "$restrictions" = "6"
+          echo "Disposable database dump/restore preserved ledger summaries and all six delete restrictions."
+          SCRIPT
+
+  supabase-auth-integration:
+    name: Local Supabase Auth and PostgREST integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start disposable local Supabase stack
+        id: start_local_stack
+        run: timeout 12m supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+
+      - name: Apply canonical migrations to local Supabase
+        run: timeout 5m supabase db reset
+
+      - name: Export local Supabase API credentials
+        run: supabase status -o env | grep -E '^(API_URL|ANON_KEY)=' >> "$GITHUB_ENV"
+
+      - name: Exercise real local Auth, JWT and PostgREST RLS
+        run: timeout 3m node scripts/test-supabase-auth.mjs
+
+      - name: Stop disposable local Supabase stack
+        if: always() && steps.start_local_stack.outcome != 'skipped'
+        run: timeout 2m supabase stop --no-backup
+
+  verify:
+    name: Typecheck, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Capture dependency audit and generated lockfile
+        if: always()
+        run: |
+          if [ -f package-lock.json ]; then
+            npm audit --json > npm-audit.json || true
+            npm audit --omit=dev --json > npm-audit-production.json || true
+            node -e 'for (const file of ["npm-audit.json", "npm-audit-production.json"]) { try { const r=require("./"+file); console.log(file, JSON.stringify({vulnerabilities:r.metadata?.vulnerabilities, packages:Object.entries(r.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,via:v.via,fixAvailable:v.fixAvailable}))}, null, 2)); } catch (e) { console.log(file, "not available"); } }'
+          else
+            echo "package-lock.json was not generated by npm install"
+          fi
+
+      - name: Upload dependency audit and lockfile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-and-lockfile
+          path: |
+            package-lock.json
+            npm-audit.json
+            npm-audit-production.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce dependency audit
+        run: |
+          npm audit --audit-level=moderate
+          npm audit --omit=dev --audit-level=moderate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder

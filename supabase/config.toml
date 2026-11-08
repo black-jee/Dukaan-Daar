@@ -1,0 +1,13 @@
+# Local Supabase CLI project configuration.
+# Link a remote project explicitly with: supabase link --project-ref <project-ref>
+project_id = "khatalink"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+enable_signup = true
+
+[auth.email]
+enabled = true
+enable_confirmations = false
