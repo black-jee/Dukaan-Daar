@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-const apiUrl = process.env.API_URL;
-const anonKey = process.env.ANON_KEY;
+const cleanEnv = (value) => value?.trim().replace(/^["\']|["\']$/g, "");
+const apiUrl = cleanEnv(process.env.API_URL);
+const anonKey = cleanEnv(process.env.ANON_KEY);
 if (!apiUrl || !anonKey) {
   throw new Error("API_URL and ANON_KEY must come from `supabase status -o env`");
 }
