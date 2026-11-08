@@ -8,6 +8,7 @@ The ordered Supabase CLI migration chain is:
 
 1. `supabase/migrations/20261108000000_initial_schema.sql`
 2. `supabase/migrations/20261108000100_harden_financial_ledger.sql`
+3. `supabase/migrations/20261108000200_prevent_financial_history_cascade_deletes.sql`
 
 The initial migration is the versioned base schema. `supabase/schema.sql` is a deprecated, comment-only pointer; do not execute it. The timestamped migrations above are the only canonical database setup path. CI replays the timestamped migration chain against disposable PostgreSQL 17.
 
@@ -18,7 +19,7 @@ For a remote project, link only the intended project and inspect proposed change
 - Commit `caf72f461cfea454574dd28ca0839393c5b00f91` is the latest PR head at the time of this update. GitHub Actions run #151 is the active verification run; database replay, ledger/RLS/idempotency/reversal/concurrency tests have passed, and dependency audit and typecheck have passed. Lint, production build, and the local Supabase Auth/PostgREST integration were still running when this status was recorded. Do not treat this commit as fully green until all jobs complete.
 - The npm audit report for the dependency tree used by this branch reported **zero vulnerabilities** in both the full dependency tree and production-only tree.
 - A committed `package-lock.json` now makes installs reproducible; CI uses `npm ci`.
-- Public discovery is served through `public.public_shops`, a security-barrier view containing only `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. Anonymous users have no direct SELECT privilege on `public.shops`; authenticated direct table reads are restricted by RLS to the shop owner. CI additionally verifies anonymous denial on profiles, customer links, transactions and reversal records, plus cross-customer isolation.
+- Public discovery is served through `public.public_shops`, a security-barrier view containing only `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. Anonymous users have no direct SELECT privilege on `public.shops`; authenticated direct table reads are restricted by RLS to the shop owner. CI additionally verifies anonymous denial on profiles, customer links, transactions and reversal records, plus cross-customer isolation. It also verifies that privileged Auth-user/profile/shop deletes are blocked when they could erase ledger history.
 - Customer discovery and QR join pages use the restricted view. The customer join policy uses the same active-shop view and a private, fixed-search-path role helper to avoid recursive RLS evaluation.
 - The connected Supabase project `wzsvvwhvbbbrxuaqdyue` was rechecked read-only: it remains healthy with zero application tables and zero recorded migrations. A read-only Storage inspection found zero buckets and zero Storage RLS policies. The repository has no implemented upload feature or Storage API usage; Storage is intentionally left unconfigured until a concrete upload requirement exists. See `docs/STORAGE_SECURITY_DESIGN.md` for future controls and isolated test requirements.
 - The deprecated `supabase/schema.sql` file was converted to a comment-only pointer to prevent accidental use of the old prototype schema.
@@ -36,7 +37,7 @@ For a remote project, link only the intended project and inspect proposed change
 
 - **Real Supabase Auth/JWT:** the disposable PostgreSQL harness models Supabase's `request.jwt.claims` JSON payload and checks `sub`, `role`, and `aud` resolution through `auth.uid()`, `auth.role()`, and `auth.jwt()`; this alone does not verify signatures. A second CI job now starts a disposable local Supabase stack, applies the canonical migrations, and exercises GoTrue signup/session creation, profile triggers and role normalization, JWT-authenticated PostgREST RLS, public discovery, customer joining, merchant-only ledger RPC authorization, refresh, and logout. This is local integration coverage, not a test against the connected hosted project; real-account email deliverability and cross-account acceptance remain outstanding.
 - **Storage:** no upload feature is currently implemented. Storage remains intentionally unconfigured; if uploads are added, private bucket/object RLS and isolated tests defined in `docs/STORAGE_SECURITY_DESIGN.md` are mandatory before release.
-- **Account deletion and retention:** hard deletion conflicts with immutable ledger rows and foreign-key anchors. Deactivate accounts/shops until a tested PII-anonymization and retention workflow exists.
+- **Account deletion and retention:** migration `20261108000200` now blocks Auth-user/profile/shop/customer deletion when it would affect linked records or ledger history. This is a safety stop, not a complete deletion workflow. Deactivate accounts/shops until a tested PII-anonymization, tombstone, and retention workflow exists.
 - **Operations:** backup/restore, monitoring, incident response, and recovery procedures are not yet verified.
 - **Application acceptance:** test signup/confirmation, login/logout, password reset, shop creation, QR joining, credit/payment entry, reversals, refresh/expired sessions, slow network, and mobile accessibility using separate real accounts.
 - **Hosting:** the CI build does not verify production host configuration, domains, environment variables, Auth redirects, cookies, or runtime integration. Use a preview deployment first; production deployment remains unverified.
@@ -46,7 +47,7 @@ For a remote project, link only the intended project and inspect proposed change
 
 `supabase-auth-integration` in GitHub Actions starts a disposable local Supabase stack and applies the timestamped migrations. `scripts/test-supabase-auth.mjs` uses the local Auth and PostgREST APIs with actual issued access/refresh tokens; the test data and credentials exist only inside the ephemeral CI environment. The local email confirmation setting is disabled solely to allow automated signup/session tests without an email inbox.
 
-This test does not connect to or mutate the hosted Supabase project `wzsvvwhvbbbrxuaqdyue`. The local Auth job is being verified in CI; only a completed passing run establishes that this suite is green.
+This test does not connect to or mutate the hosted Supabase project `wzsvvwhvbbbrxuaqdyue`. Run #153 passed the local Supabase Auth/PostgREST integration: GoTrue signup/session creation, profile triggers and role normalization, JWT-authenticated PostgREST RLS, public discovery, customer joining, merchant-only ledger RPC authorization, refresh, and logout. This does not test hosted project accounts.
 
 ## Required cross-account tests
 
