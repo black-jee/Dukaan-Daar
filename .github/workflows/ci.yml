@@ -146,9 +146,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
-          version: latest
+          # Keep CLI v2 pinned: CLI v3 changes hosted-command defaults and prompts.
+          version: 2.122.1
 
       - name: Start disposable local Supabase stack
         id: start_local_stack
