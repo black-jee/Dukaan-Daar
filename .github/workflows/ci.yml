@@ -72,6 +72,24 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: khatalink_test
 
+      - name: Add one-time Google signup role claims
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000300_secure_google_signup_role_claim.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Verify Google signup roles are one-time and existing roles are immutable
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/google_signup_role_claim.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
       - name: Run ledger, idempotency, reversal and RLS smoke tests
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/financial_ledger_smoke.sql
         env:
