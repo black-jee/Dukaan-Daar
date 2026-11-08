@@ -16,7 +16,6 @@ function EntryForm() {
   const searchParams = useSearchParams();
   const preselectedCustomer = searchParams.get("customer");
 
-  const supabase = createClient();
   const [shop, setShop] = useState<Shop | null>(null);
   const [customers, setCustomers] = useState<CustomerWithProfile[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(preselectedCustomer || "");
@@ -40,6 +39,7 @@ function EntryForm() {
   }, [selectedCustomerId, amount, note, type]);
 
   async function load() {
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -75,6 +75,7 @@ function EntryForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = createClient();
     if (!shop || !selectedCustomerId || !amount) return;
 
     setSubmitting(true);
