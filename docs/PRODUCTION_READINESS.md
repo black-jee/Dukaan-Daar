@@ -34,13 +34,19 @@ For a remote project, link only the intended project and inspect proposed change
 
 ## Remaining release blockers
 
-- **Real Supabase Auth/JWT:** the disposable PostgreSQL harness now models Supabase's `request.jwt.claims` JSON payload and checks `sub`, `role`, and `aud` resolution through `auth.uid()`, `auth.role()`, and `auth.jwt()`. It does not verify JWT signatures or exercise GoTrue signup, email confirmation, refresh, logout, or actual PostgREST gateway behavior. Those require a local Supabase stack integration suite and real-account acceptance.
+- **Real Supabase Auth/JWT:** the disposable PostgreSQL harness models Supabase's `request.jwt.claims` JSON payload and checks `sub`, `role`, and `aud` resolution through `auth.uid()`, `auth.role()`, and `auth.jwt()`; this alone does not verify signatures. A second CI job now starts a disposable local Supabase stack, applies the canonical migrations, and exercises GoTrue signup/session creation, profile triggers and role normalization, JWT-authenticated PostgREST RLS, public discovery, customer joining, merchant-only ledger RPC authorization, refresh, and logout. This is local integration coverage, not a test against the connected hosted project; real-account email deliverability and cross-account acceptance remain outstanding.
 - **Storage:** production storage bucket/object access policies have not been verified.
 - **Account deletion and retention:** hard deletion conflicts with immutable ledger rows and foreign-key anchors. Deactivate accounts/shops until a tested PII-anonymization and retention workflow exists.
 - **Operations:** backup/restore, monitoring, incident response, and recovery procedures are not yet verified.
 - **Application acceptance:** test signup/confirmation, login/logout, password reset, shop creation, QR joining, credit/payment entry, reversals, refresh/expired sessions, slow network, and mobile accessibility using separate real accounts.
 - **Hosting:** the CI build does not verify production host configuration, domains, environment variables, Auth redirects, cookies, or runtime integration. Use a preview deployment first; production deployment remains unverified.
 - **Financial operations:** UPI settlement must be merchant-confirmed; reconcile ledger correctness and retention rules before real money/records are used.
+
+## Local Auth integration test
+
+`supabase-auth-integration` in GitHub Actions starts a disposable local Supabase stack and applies the timestamped migrations. `scripts/test-supabase-auth.mjs` uses the local Auth and PostgREST APIs with actual issued access/refresh tokens; the test data and credentials exist only inside the ephemeral CI environment. The local email confirmation setting is disabled solely to allow automated signup/session tests without an email inbox.
+
+This test does not connect to or mutate the hosted Supabase project `wzsvvwhvbbbrxuaqdyue`.
 
 ## Required cross-account tests
 
