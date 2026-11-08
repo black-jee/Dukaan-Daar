@@ -62,7 +62,7 @@ begin
     raise exception 'Authentication required' using errcode = '42501';
   end if;
 
-  if p_role not in ('merchant', 'customer') then
+  if p_role is null or p_role not in ('merchant', 'customer') then
     raise exception 'Invalid signup role' using errcode = '22023';
   end if;
 
