@@ -1,9 +1,7 @@
 -- Initial KhataLink schema migration.
--- Canonical migration copy of supabase/schema.sql for Supabase CLI deployments.
--- Apply once to an empty project before 20261108000100_harden_financial_ledger.sql.
-
--- KhataLink Database Schema for Supabase (PostgreSQL)
--- Run this in Supabase SQL Editor after creating a new project.
+-- Canonical baseline migration for Supabase CLI deployments.
+-- Apply to an empty project before 20261108000100_harden_financial_ledger.sql.
+-- Do not execute the deprecated supabase/schema.sql reference path.
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
