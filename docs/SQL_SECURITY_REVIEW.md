@@ -12,15 +12,19 @@ The Supabase project `wzsvvwhvbbbrxuaqdyue` is healthy. Read-only checks confirm
 
 - Merchant self-registration is intentionally open. The signup trigger accepts `merchant` or `customer` and defaults missing/invalid metadata to `customer`; authenticated clients cannot update their own role.
 - Public discovery intentionally exposes shop name, category, address, latitude/longitude, UPI ID, and description.
-- Anonymous SELECT is column-scoped to `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. The internal `owner_id` and `is_active` columns are not granted to `anon`. Authenticated users retain the table SELECT grant for owner/dashboard workflows.
+- Public discovery is exposed through `public.public_shops`, a security-barrier view containing only approved fields. It is owned by the migration role so the view can read active shops without exposing the underlying RLS-protected table.
+- `anon` has no direct SELECT privilege on `public.shops`. Authenticated users may SELECT the table, but the only direct SELECT policy is owner-scoped, so merchants can read their own shop rows and customers cannot read internal shop rows.
+- Discovery, QR join, and customer passbook pages use `public_shops`; merchant management pages use the owner-scoped `shops` table.
+- The customer-join RLS check queries the public active-shop view. Merchant/customer role checks use `private.current_profile_role()`, a stable SECURITY DEFINER helper with a fixed search path, to avoid recursive RLS evaluation. The private schema is not intended as a PostgREST-exposed schema.
 - Financial records and customer information remain participant-scoped.
 
 ## Database migration chain and verification
 
-- `20261108000000_initial_schema.sql` is the baseline migration, copied from `supabase/schema.sql`.
+- `20261108000000_initial_schema.sql` is the baseline migration.
 - `20261108000100_harden_financial_ledger.sql` applies least-privilege grants, participant-scoped RLS, immutable transaction rows, append-only reversal audit, merchant-only transaction RPCs, idempotency, and balance/credit-limit enforcement.
 - GitHub Actions replays the ordered migration files in a disposable PostgreSQL 17 service, then runs ledger/RLS/idempotency/reversal tests and concurrent duplicate-submission verification.
-- The current tested branch checkpoint passed the application typecheck, lint, production build, and database migration/security jobs.
+- The latest verified CI checkpoint passed migration replay, shop-view privacy tests, customer join, ledger tests, concurrent duplicate submission, `npm ci`, dependency audit gates, typecheck, lint, and production build.
+- The npm audit report for the committed lockfile reports zero vulnerabilities across all dependencies and across production dependencies only.
 - These tests are not a substitute for real Supabase Auth/JWT, Storage, backup/restore, or real-account acceptance testing.
 
 ## High-priority design constraint: ledger retention
@@ -29,10 +33,8 @@ The base schema uses cascading foreign keys from profiles/shops to ledger-relate
 
 ## Remaining security and release work
 
-- Dependency installation reports 9 npm vulnerabilities (7 moderate, 2 high); detailed advisory paths and safe remediations remain to be reviewed.
-- No `package-lock.json` is committed; CI uses `npm install` rather than reproducible `npm ci`.
 - Real Supabase Auth/JWT tests with multiple accounts remain required.
-- Storage bucket access and object policies remain unverified.
+- Storage bucket/object policies remain unverified.
 - Broader concurrent credit-limit boundary tests remain required.
 - Account deletion, PII retention, backup/restore, operational monitoring, UPI settlement controls, and full frontend acceptance remain release blockers.
 - Production host/domain, redirects, runtime configuration, and deployment remain unverified.
