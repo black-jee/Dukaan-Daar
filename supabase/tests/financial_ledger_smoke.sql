@@ -34,24 +34,46 @@ values
   ('30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001',100.00),
   ('30000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002',100.00);
 
--- Anonymous visitors can discover active shops and the product-approved public fields.
+-- Anonymous visitors discover only the approved public-shop view.
 set role anon;
-do $$
+do $
 begin
-  if (select count(*) from public.shops) <> 2 then
-    raise exception 'Anonymous active-shop discovery did not return both shops';
+  if (select count(*) from public.public_shops) <> 2 then
+    raise exception 'Anonymous public shop discovery did not return both shops';
   end if;
-  if not has_column_privilege(current_user, 'public.shops', 'upi_id', 'SELECT') then
-    raise exception 'Expected public UPI visibility per approved product decision';
+  if has_table_privilege(current_user, 'public.shops', 'SELECT') then
+    raise exception 'Anonymous users must not query the internal shops table';
   end if;
-  if has_column_privilege(current_user, 'public.shops', 'owner_id', 'SELECT') then
-    raise exception 'Anonymous users must not read internal shop ownership metadata';
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'public_shops'
+      and column_name in ('owner_id', 'is_active', 'created_at', 'updated_at')
+  ) then
+    raise exception 'Public shop view exposes internal metadata';
   end if;
-  if has_column_privilege(current_user, 'public.shops', 'is_active', 'SELECT') then
-    raise exception 'Anonymous users must not read internal shop activation metadata';
+  if (select upi_id from public.public_shops where id='30000000-0000-4000-8000-000000000001') <> 'merchant1@upi' then
+    raise exception 'Public shop view omitted approved UPI field';
   end if;
 end;
-$$;
+$;
+reset role;
+
+-- A customer can discover active shops but cannot read any row from the internal shops table.
+set role authenticated;
+select set_config('request.jwt.claim.sub','20000000-0000-4000-8000-000000000002',false);
+do $
+begin
+  if (select count(*) from public.public_shops) <> 2 then
+    raise exception 'Authenticated customer cannot discover public shops';
+  end if;
+  if (select count(*) from public.shops) <> 0 then
+    raise exception 'Customer can read internal shop rows';
+  end if;
+end;
+$;
+-- Joining remains possible because the RLS check uses the public active-shop view.
+insert into public.shop_customers (shop_id, customer_id)
+values ('30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002');
 reset role;
 
 -- Merchant one can record ledger entries; duplicate retries must not double-post.
