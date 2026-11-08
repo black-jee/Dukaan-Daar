@@ -44,6 +44,12 @@ begin
   if has_table_privilege(current_user, 'public.shops', 'SELECT') then
     raise exception 'Anonymous users must not query the internal shops table';
   end if;
+  if has_table_privilege(current_user, 'public.profiles', 'SELECT')
+     or has_table_privilege(current_user, 'public.shop_customers', 'SELECT')
+     or has_table_privilege(current_user, 'public.transactions', 'SELECT')
+     or has_table_privilege(current_user, 'public.transaction_reversals', 'SELECT') then
+    raise exception 'Anonymous users must not query private profile or financial tables';
+  end if;
   if exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'public_shops'
@@ -68,6 +74,15 @@ begin
   end if;
   if (select count(*) from public.shops) <> 0 then
     raise exception 'Customer can read internal shop rows';
+  end if;
+  if (select count(*) from public.profiles where id='20000000-0000-4000-8000-000000000001') <> 0 then
+    raise exception 'Customer can read another customer profile';
+  end if;
+  if (select count(*) from public.shop_customers where customer_id='20000000-0000-4000-8000-000000000001') <> 0 then
+    raise exception 'Customer can read another customer link';
+  end if;
+  if (select count(*) from public.transactions) <> 0 then
+    raise exception 'Customer can read another customer ledger';
   end if;
 end;
 $test$;
