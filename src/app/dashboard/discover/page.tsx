@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { Shop } from "@/types/database";
+import type { PublicShop } from "@/types/database";
 import { Store, MapPin } from "lucide-react";
 
 export default function DiscoverPage() {
   const supabase = createClient();
-  const [shops, setShops] = useState<Shop[]>([]);
+  const [shops, setShops] = useState<PublicShop[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -18,9 +18,8 @@ export default function DiscoverPage() {
 
   async function load() {
     const { data } = await supabase
-      .from("shops")
+      .from("public_shops")
       .select("*")
-      .eq("is_active", true)
       .order("name")
       .limit(50);
     setShops(data || []);
