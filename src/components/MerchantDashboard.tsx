@@ -127,9 +127,10 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-6 pb-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="eyebrow">Shop overview</p>
           <h1 className="page-title truncate">{shop.name}</h1>
           <p className="page-subtitle">{shop.category} · This shop only</p>
         </div>
