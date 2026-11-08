@@ -48,9 +48,12 @@ export default function LedgerPage() {
   }, [shopId]);
 
   useEffect(() => {
-    const supabase = createClient();
     void load();
+  }, [load]);
+
+  useEffect(() => {
     if (!customerId) return;
+    const supabase = createClient();
     const channel = supabase
       .channel(`customer-ledger-${shopId}-${customerId}`)
       .on(
@@ -60,7 +63,7 @@ export default function LedgerPage() {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "shop_customers", filter: `customer_id=eq.${link?.customer_id || ""}` },
+        { event: "*", schema: "public", table: "shop_customers", filter: `customer_id=eq.${customerId}` },
         () => void load()
       )
       .subscribe();
