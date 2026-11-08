@@ -7,12 +7,12 @@ import type { Shop } from "@/types/database";
 import Link from "next/link";
 
 export default function QRPage() {
-  const supabase = createClient();
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
+      const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
