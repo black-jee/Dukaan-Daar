@@ -22,7 +22,7 @@ export default function CustomerDashboard({ userId }: { userId: string }) {
       .from("shop_customers")
       .select("*")
       .eq("customer_id", userId)
-      .order("created_at", { ascending: false });
+      .order("joined_at", { ascending: false });
 
     if (membershipError) {
       setLoadError("We couldn't load your shop ledgers. Please try again.");
