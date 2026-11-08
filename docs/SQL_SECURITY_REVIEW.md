@@ -22,6 +22,7 @@ The Supabase project `wzsvvwhvbbbrxuaqdyue` is healthy. Read-only checks confirm
 
 - `20261108000000_initial_schema.sql` is the baseline migration.
 - `20261108000100_harden_financial_ledger.sql` applies least-privilege grants, participant-scoped RLS, immutable transaction rows, append-only reversal audit, merchant-only transaction RPCs, idempotency, and balance/credit-limit enforcement.
+- `supabase/schema.sql` is now a comment-only deprecated pointer and must not be executed; the timestamped migration chain is canonical.
 - GitHub Actions replays the ordered migration files in a disposable PostgreSQL 17 service, then runs ledger/RLS/idempotency/reversal tests and concurrent duplicate-submission verification.
 - The latest verified CI checkpoint passed migration replay, shop-view privacy tests, customer join, ledger tests, concurrent duplicate submission, `npm ci`, dependency audit gates, typecheck, lint, and production build.
 - The npm audit report for the committed lockfile reports zero vulnerabilities across all dependencies and across production dependencies only.
