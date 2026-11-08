@@ -119,12 +119,18 @@ grant select on public.profiles to authenticated;
 grant update (full_name, phone, avatar_url) on public.profiles to authenticated;
 
 revoke all on public.shops from anon, authenticated;
--- Anonymous discovery receives only product-approved public fields; ownership and
--- operational metadata remain unavailable to unauthenticated clients.
-grant select (id, name, category, address, latitude, longitude, upi_id, description)
-  on public.shops to anon;
+-- Authenticated users may query the shop table only through owner-scoped RLS.
+-- Public discovery uses a separate view that never contains internal columns.
 grant select on public.shops to authenticated;
 grant insert on public.shops to authenticated;
+create or replace view public.public_shops
+with (security_barrier = true)
+as
+select id, name, category, address, latitude, longitude, upi_id, description
+from public.shops
+where is_active = true;
+revoke all on public.public_shops from public;
+grant select on public.public_shops to anon, authenticated;
 grant update (name, category, address, latitude, longitude, upi_id, description, is_active)
   on public.shops to authenticated;
 
@@ -158,11 +164,8 @@ on public.profiles for update to authenticated
 using (id = (select auth.uid()))
 with check (id = (select auth.uid()));
 
--- Active shops are discoverable; owners can also see/manage their inactive shop.
-create policy shops_public_active
-on public.shops for select to anon, authenticated
-using (is_active = true);
-
+-- Direct shop-table reads are restricted to the owner. Public discovery is
+-- served by public.public_shops, which exposes only approved public columns.
 create policy shops_owner_select
 on public.shops for select to authenticated
 using (owner_id = (select auth.uid()));
@@ -214,8 +217,8 @@ with check (
     where p.id = (select auth.uid()) and p.role = 'customer'
   )
   and exists (
-    select 1 from public.shops s
-    where s.id = shop_customers.shop_id and s.is_active = true
+    select 1 from public.public_shops s
+    where s.id = shop_customers.shop_id
   )
 );
 
