@@ -61,11 +61,6 @@ export default function CustomerDashboard({ userId }: { userId: string }) {
         { event: "*", schema: "public", table: "shop_customers", filter: `customer_id=eq.${userId}` },
         () => void loadData()
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "transactions", filter: `customer_id=eq.${userId}` },
-        () => void loadData()
-      )
       .subscribe();
 
     return () => {
