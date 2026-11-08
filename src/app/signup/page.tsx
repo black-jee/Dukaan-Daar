@@ -2,14 +2,13 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Store, User } from "lucide-react";
 
 function SignupForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const initialRole = (searchParams.get("role") as "merchant" | "customer") || "customer";
+  const initialRole = searchParams.get("role") === "merchant" ? "merchant" : "customer";
 
   const supabase = createClient();
   const [role, setRole] = useState<"merchant" | "customer">(initialRole);
@@ -18,6 +17,7 @@ function SignupForm() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSignup(e: React.FormEvent) {
@@ -43,15 +43,31 @@ function SignupForm() {
       return;
     }
 
-    // A user may exist without an active session when email confirmation is enabled.
     if (data.session) {
-      router.push("/dashboard");
-      router.refresh();
+      window.location.assign("/dashboard");
       return;
     }
 
     setError("Account created. Check your email to confirm your address, then sign in.");
     setLoading(false);
+  }
+
+  async function handleGoogleSignup() {
+    setGoogleLoading(true);
+    setError(null);
+
+    const redirectTo = new URL("/auth/callback", window.location.origin);
+    redirectTo.searchParams.set("role", role);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: redirectTo.toString() },
+    });
+
+    if (error) {
+      setError(error.message);
+      setGoogleLoading(false);
+    }
   }
 
   return (
@@ -65,11 +81,11 @@ function SignupForm() {
           <p className="mt-2 text-slate-600">Create your account</p>
         </div>
 
-        {/* Role toggle */}
         <div className="mb-6 grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setRole("merchant")}
+            aria-pressed={role === "merchant"}
             className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition ${
               role === "merchant"
                 ? "border-primary-500 bg-primary-50 text-primary-800"
@@ -82,6 +98,7 @@ function SignupForm() {
           <button
             type="button"
             onClick={() => setRole("customer")}
+            aria-pressed={role === "customer"}
             className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition ${
               role === "customer"
                 ? "border-primary-500 bg-primary-50 text-primary-800"
@@ -93,73 +110,83 @@ function SignupForm() {
           </button>
         </div>
 
-        <form onSubmit={handleSignup} className="card space-y-4">
+        <div className="card space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Full Name
-            </label>
-            <input
-              type="text"
-              required
-              className="input"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Ramesh Kumar"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Phone (optional)
-            </label>
-            <input
-              type="tel"
-              className="input"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              className="input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min 6 characters"
-            />
-          </div>
-
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? "Creating account…" : "Create account"}
+          <button
+            type="button"
+            onClick={handleGoogleSignup}
+            disabled={googleLoading || loading}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 font-medium text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span aria-hidden="true" className="text-lg font-bold text-blue-600">G</span>
+            {googleLoading ? "Connecting to Google…" : `Continue with Google as ${role === "merchant" ? "Shop Owner" : "Customer"}`}
           </button>
-        </form>
+
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            OR
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Full Name</label>
+              <input
+                type="text"
+                required
+                className="input"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Ramesh Kumar"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+              <input
+                type="email"
+                required
+                className="input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Phone (optional)</label>
+              <input
+                type="tel"
+                className="input"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                className="input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min 6 characters"
+              />
+            </div>
+
+            <button type="submit" disabled={loading || googleLoading} className="btn-primary w-full">
+              {loading ? "Creating account…" : "Create account with email"}
+            </button>
+          </form>
+        </div>
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Already have an account?{" "}
