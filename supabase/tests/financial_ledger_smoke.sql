@@ -228,4 +228,39 @@ begin
 end;
 $$;
 
+-- Parent deletion must never cascade into financial history.
+-- This runs as the database owner to verify the FK safeguards, not just RLS.
+do $test$
+begin
+  begin
+    delete from auth.users where id='10000000-0000-4000-8000-000000000001';
+    raise exception 'Auth user deletion unexpectedly cascaded into profile/history';
+  exception when foreign_key_violation then
+    null;
+  end;
+
+  begin
+    delete from public.profiles where id='20000000-0000-4000-8000-000000000001';
+    raise exception 'Customer profile deletion unexpectedly removed ledger history';
+  exception when foreign_key_violation then
+    null;
+  end;
+
+  begin
+    delete from public.shops where id='30000000-0000-4000-8000-000000000001';
+    raise exception 'Shop deletion unexpectedly cascaded into ledger history';
+  exception when foreign_key_violation then
+    null;
+  end;
+
+  begin
+    delete from public.transactions
+    where idempotency_key='40000000-0000-4000-8000-000000000001';
+    raise exception 'Ledger row deletion unexpectedly succeeded';
+  exception when sqlstate '55000' then
+    null;
+  end;
+end;
+$test$;
+
 select 'database integration smoke tests passed' as result;
