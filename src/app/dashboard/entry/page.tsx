@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
-import type { Shop, ShopCustomer, Profile } from "@/types/database";
+import type { ShopCustomer, Profile } from "@/types/database";
+import { useMerchantShops } from "@/components/MerchantShopProvider";
 import { Suspense } from "react";
 
 const PRESETS = [10, 20, 50, 100, 200, 500];
@@ -15,9 +16,7 @@ function EntryForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedCustomer = searchParams.get("customer");
-
-  const supabase = createClient();
-  const [shop, setShop] = useState<Shop | null>(null);
+  const { selectedShop: shop, loading: shopsLoading } = useMerchantShops();
   const [customers, setCustomers] = useState<CustomerWithProfile[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(preselectedCustomer || "");
   const [amount, setAmount] = useState("");
@@ -30,8 +29,24 @@ function EntryForm() {
   const [idempotencyKey, setIdempotencyKey] = useState("");
 
   useEffect(() => {
-    load();
-  }, []);
+    let active = true;
+    async function loadCustomers() {
+      if (shopsLoading) return;
+      if (!shop) { setCustomers([]); setSelectedCustomerId(""); setLoading(false); return; }
+      setLoading(true);
+      const supabase = createClient();
+      const { data, error: queryError } = await supabase.from("shop_customers").select("*, profiles(*)").eq("shop_id", shop.id).eq("status", "active").order("profiles(full_name)");
+      if (!active) return;
+      const shopCustomers = queryError ? [] : (data as CustomerWithProfile[]) || [];
+      setCustomers(shopCustomers);
+      setSelectedCustomerId(preselectedCustomer && shopCustomers.some((c) => c.customer_id === preselectedCustomer) ? preselectedCustomer : "");
+      if (queryError) setError("Could not load this shop’s customers. Please retry.");
+      else setError(null);
+      setLoading(false);
+    }
+    void loadCustomers();
+    return () => { active = false; };
+  }, [shop?.id, shopsLoading, preselectedCustomer]);
 
   // A changed payload is a new transaction intent. Preserve the key only for
   // retries of the exact same request after an ambiguous network failure.
@@ -39,42 +54,11 @@ function EntryForm() {
     setIdempotencyKey("");
   }, [selectedCustomerId, amount, note, type]);
 
-  async function load() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const { data: shops } = await supabase
-      .from("shops")
-      .select("*")
-      .eq("owner_id", user.id)
-      .limit(1);
-
-    if (!shops?.[0]) {
-      setLoading(false);
-      return;
-    }
-    setShop(shops[0]);
-
-    const { data: sc } = await supabase
-      .from("shop_customers")
-      .select("*, profiles(*)")
-      .eq("shop_id", shops[0].id)
-      .eq("status", "active")
-      .order("profiles(full_name)");
-
-    setCustomers((sc as CustomerWithProfile[]) || []);
-    setLoading(false);
-  }
-
   const selected = customers.find((c) => c.customer_id === selectedCustomerId);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = createClient();
     if (!shop || !selectedCustomerId || !amount) return;
 
     setSubmitting(true);
@@ -95,19 +79,21 @@ function EntryForm() {
 
     if (error) {
       setError(error.message);
-    } else {
-      setIdempotencyKey("");
-      setSuccess(true);
-      // Haptic / sound feedback simulation
-      if (navigator.vibrate) navigator.vibrate(50);
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 800);
+      setSubmitting(false);
+      return;
     }
-    setSubmitting(false);
+
+    // Keep the form locked and retain the idempotency key until navigation.
+    // Re-enabling here would let a fast second tap create a new transaction.
+    setSuccess(true);
+    // Haptic feedback after the database confirms the transaction.
+    if (navigator.vibrate) navigator.vibrate(50);
+    window.setTimeout(() => {
+      router.push("/dashboard");
+    }, 800);
   }
 
-  if (loading) {
+  if (shopsLoading || loading) {
     return <div className="py-20 text-center text-slate-500">Loading…</div>;
   }
 
@@ -125,7 +111,7 @@ function EntryForm() {
 
       <form onSubmit={handleSubmit} className="card space-y-5">
         {error && (
-          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         )}
         {success && (
           <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">

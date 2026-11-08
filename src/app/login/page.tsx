@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Store } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,6 +14,7 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = createClient();
     setLoading(true);
     setError(null);
 
@@ -31,11 +29,13 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // Force a fresh document so the server sees the newly written auth cookies
+    // and no prefetched route from a previous account can be reused.
+    window.location.replace("/dashboard");
   }
 
   async function handleGoogleLogin() {
+    const supabase = createClient();
     setGoogleLoading(true);
     setError(null);
 
@@ -53,9 +53,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-100 via-[#f6f8f7] to-[#f6f8f7] px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[.16em] text-primary-800">Clear dues. Better business.</p>
           <Link href="/" className="inline-flex items-center gap-2 text-2xl font-bold text-primary-700">
             <Store className="h-7 w-7" />
             KhataLink
@@ -63,7 +64,7 @@ export default function LoginPage() {
           <p className="mt-2 text-slate-600">Sign in to your account</p>
         </div>
 
-        <div className="card space-y-4">
+        <div className="card space-y-5 p-6 sm:p-8">
           {error && (
             <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
@@ -74,7 +75,7 @@ export default function LoginPage() {
             type="button"
             onClick={handleGoogleLogin}
             disabled={googleLoading || loading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 font-medium text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span aria-hidden="true" className="text-lg font-bold text-blue-600">G</span>
             {googleLoading ? "Connecting to Google…" : "Continue with Google"}

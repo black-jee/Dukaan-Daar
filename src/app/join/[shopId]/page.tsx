@@ -10,7 +10,6 @@ export default function JoinShopPage() {
   const params = useParams();
   const shopId = params.shopId as string;
   const router = useRouter();
-  const supabase = createClient();
 
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +20,7 @@ export default function JoinShopPage() {
 
   useEffect(() => {
     async function load() {
+      const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -57,6 +57,7 @@ export default function JoinShopPage() {
 
     setJoining(true);
     setError(null);
+    const supabase = createClient();
 
     const { error } = await supabase.from("shop_customers").insert({
       shop_id: shopId,

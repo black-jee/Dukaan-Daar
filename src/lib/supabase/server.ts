@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
 
@@ -38,3 +39,30 @@ export async function createClient() {
     },
   });
 }
+
+// Layout and page Server Components share this request-scoped lookup.
+// React cache deduplicates the auth/profile round trips during one render.
+export const getDashboardContext = cache(async () => {
+  const supabase = await createClient();
+
+  // Middleware still calls getUser() to refresh/validate the session cookie.
+  // On the server render, verify the refreshed JWT through getClaims() rather
+  // than making a second Auth user-info request on every dashboard navigation.
+  // getClaims verifies the token (using cached JWKS where supported); RLS still
+  // authorizes all subsequent database reads and writes independently.
+  const { data: verifiedToken } = await supabase.auth.getClaims();
+  const userId = verifiedToken?.claims?.sub;
+
+  if (typeof userId !== "string" || !userId) {
+    return { user: null, profile: null };
+  }
+
+  const user = { id: userId };
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  return { user, profile };
+});

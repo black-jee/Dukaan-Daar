@@ -1,31 +1,22 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getDashboardContext } from "@/lib/supabase/server";
 import DashboardNav from "@/components/DashboardNav";
+import { MerchantShopProvider, MerchantShopStatus } from "@/components/MerchantShopProvider";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, profile } = await getDashboardContext();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  return (
-    <div className="min-h-screen bg-slate-50">
+  const content = (
+    <div className="min-h-screen bg-[#f6f8f7]">
       <DashboardNav profile={profile} />
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6 pb-28 sm:px-6 sm:py-8 md:pb-10">{children}</main>
     </div>
   );
+  return profile?.role === "merchant" ? <MerchantShopProvider userId={user.id}><MerchantShopStatus />{content}</MerchantShopProvider> : content;
 }

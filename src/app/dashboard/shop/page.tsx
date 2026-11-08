@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Shop } from "@/types/database";
+import { useMerchantShops } from "@/components/MerchantShopProvider";
 
 const CATEGORIES = [
   "Tea / Coffee",
@@ -17,8 +17,7 @@ const CATEGORIES = [
 
 export default function ShopSetupPage() {
   const router = useRouter();
-  const supabase = createClient();
-  const [shop, setShop] = useState<Shop | null>(null);
+  const { selectedShop: shop, refreshShops, loading: shopsLoading } = useMerchantShops();
   const [name, setName] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [address, setAddress] = useState("");
@@ -30,38 +29,23 @@ export default function ShopSetupPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    loadShop();
-  }, []);
+    if (!shopsLoading) void loadShop();
+  }, [shop?.id, shopsLoading]);
 
   async function loadShop() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const { data } = await supabase
-      .from("shops")
-      .select("*")
-      .eq("owner_id", user.id)
-      .limit(1)
-      .maybeSingle();
-
-    if (data) {
-      setShop(data);
-      setName(data.name);
-      setCategory(data.category);
-      setAddress(data.address || "");
-      setUpiId(data.upi_id || "");
-      setDescription(data.description || "");
+    if (shopsLoading) return;
+    if (shop) {
+      setName(shop.name); setCategory(shop.category); setAddress(shop.address || "");
+      setUpiId(shop.upi_id || ""); setDescription(shop.description || "");
+    } else {
+      setName(""); setCategory(CATEGORIES[0]); setAddress(""); setUpiId(""); setDescription("");
     }
     setLoading(false);
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = createClient();
     setSaving(true);
     setError(null);
     setSuccess(false);
@@ -89,6 +73,7 @@ export default function ShopSetupPage() {
         .from("shops")
         .update(editablePayload)
         .eq("id", shop.id)
+        .eq("owner_id", user.id)
         .select()
         .single();
     } else {
@@ -102,14 +87,14 @@ export default function ShopSetupPage() {
     if (result.error) {
       setError(result.error.message);
     } else {
-      setShop(result.data);
+      await refreshShops();
       setSuccess(true);
       setTimeout(() => router.push("/dashboard"), 1000);
     }
     setSaving(false);
   }
 
-  if (loading) {
+  if (shopsLoading || loading) {
     return <div className="py-20 text-center text-slate-500">Loading…</div>;
   }
 

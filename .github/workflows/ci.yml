@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main", "chore/production-readiness", "feat/google-oauth"]
   pull_request:
-    branches: ["main", "chore/production-readiness"]
+    branches: ["main", "chore/production-readiness", "feat/google-oauth"]
 
 permissions:
   contents: read
@@ -81,6 +81,15 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: khatalink_test
 
+      - name: Replace security-definer public shop view with read-only directory table
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000400_public_shop_directory.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
       - name: Verify Google signup roles are one-time and existing roles are immutable
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/google_signup_role_claim.sql
         env:
@@ -92,6 +101,15 @@ jobs:
 
       - name: Run ledger, idempotency, reversal and RLS smoke tests
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/financial_ledger_smoke.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Verify public shop directory isolation and synchronization
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/public_shop_directory.sql
         env:
           PGHOST: localhost
           PGPORT: 5432
@@ -146,9 +164,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
-          version: latest
+          # Keep CLI v2 pinned: CLI v3 changes hosted-command defaults and prompts.
+          version: 2.122.1
 
       - name: Start disposable local Supabase stack
         id: start_local_stack
@@ -179,6 +198,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: npm ci

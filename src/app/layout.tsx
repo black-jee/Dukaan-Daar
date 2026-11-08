@@ -1,11 +1,25 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "KhataLink – Digital Khata & Micro-Credit",
+  title: "KhataLink — Clear dues. Better business.",
   description:
-    "Simple digital ledger for local shops. Track credit, settle dues, and stay in sync with customers in real time.",
+    "A simple, secure digital khata for local shops and customers. Every shop gets its own private ledger.",
   manifest: "/manifest.json",
+  applicationName: "KhataLink",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "KhataLink",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#047857",
 };
 
 export default function RootLayout({
@@ -15,11 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <meta name="theme-color" content="#059669" />
-      </head>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <ServiceWorkerRegistration />
+        {children}
+      </body>
     </html>
   );
 }

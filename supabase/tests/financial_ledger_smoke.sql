@@ -264,3 +264,46 @@ end;
 $test$;
 
 select 'database integration smoke tests passed' as result;
+
+-- One customer can belong to multiple shops; each shop balance and passbook stays isolated.
+set role authenticated;
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated","aud":"authenticated"}',false);
+select public.add_transaction(
+  '30000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000002',
+  40.00,'credit','40000000-0000-4000-8000-000000000003','Shop one due'
+);
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","role":"authenticated","aud":"authenticated"}',false);
+select public.add_transaction(
+  '30000000-0000-4000-8000-000000000002',
+  '20000000-0000-4000-8000-000000000002',
+  70.00,'credit','40000000-0000-4000-8000-000000000005','Shop two due'
+);
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claims','{"sub":"20000000-0000-4000-8000-000000000002","role":"authenticated","aud":"authenticated"}',false);
+do $$
+begin
+  if (select count(*) from public.shop_customers) <> 2 then
+    raise exception 'Multi-shop customer must see exactly their two linked shop accounts';
+  end if;
+  if (select current_balance from public.shop_customers where shop_id='30000000-0000-4000-8000-000000000001' and customer_id='20000000-0000-4000-8000-000000000002') <> 40.00 then
+    raise exception 'Shop one balance was mixed with another shop';
+  end if;
+  if (select current_balance from public.shop_customers where shop_id='30000000-0000-4000-8000-000000000002' and customer_id='20000000-0000-4000-8000-000000000002') <> 70.00 then
+    raise exception 'Shop two balance was mixed with another shop';
+  end if;
+  if (select count(*) from public.transactions where customer_id='20000000-0000-4000-8000-000000000002') <> 2 then
+    raise exception 'Multi-shop customer must see exactly two separate shop transactions';
+  end if;
+  if (select count(*) from public.transactions where customer_id='20000000-0000-4000-8000-000000000002' and shop_id='30000000-0000-4000-8000-000000000001') <> 1
+     or (select count(*) from public.transactions where customer_id='20000000-0000-4000-8000-000000000002' and shop_id='30000000-0000-4000-8000-000000000002') <> 1 then
+    raise exception 'Multi-shop customer passbooks are not isolated by shop';
+  end if;
+end;
+$$;
+reset role;
