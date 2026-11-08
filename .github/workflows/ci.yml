@@ -105,6 +105,7 @@ jobs:
           version: latest
 
       - name: Start disposable local Supabase stack
+        id: start_local_stack
         run: timeout 12m supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
 
       - name: Apply canonical migrations to local Supabase
@@ -117,7 +118,7 @@ jobs:
         run: timeout 3m node scripts/test-supabase-auth.mjs
 
       - name: Stop disposable local Supabase stack
-        if: always()
+        if: always() && steps.start_local_stack.outcome != 'skipped'
         run: timeout 2m supabase stop --no-backup
 
   verify:
