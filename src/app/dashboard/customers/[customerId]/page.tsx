@@ -6,10 +6,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Profile, ShopCustomer, Transaction } from "@/types/database";
+import { useMerchantShops } from "@/components/MerchantShopProvider";
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params.customerId as string;
+  const { selectedShop, loading: shopsLoading } = useMerchantShops();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [link, setLink] = useState<ShopCustomer | null>(null);
@@ -21,33 +23,14 @@ export default function CustomerDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    load();
-  }, [customerId]);
+    if (!shopsLoading) void load();
+  }, [customerId, selectedShop?.id, shopsLoading]);
 
   async function load() {
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const { data: shops } = await supabase
-      .from("shops")
-      .select("*")
-      .eq("owner_id", user.id)
-      .limit(1);
-    if (!shops?.[0]) {
-      setLoading(false);
-      return;
-    }
-
-    const { data: sc } = await supabase
-      .from("shop_customers")
-      .select("*")
-      .eq("shop_id", shops[0].id)
+    if (!selectedShop) { setLink(null); setProfile(null); setTxs([]); setLoading(false); return; }
+    setLoading(true);
+    const { data: sc } = await supabase.from("shop_customers").select("*").eq("shop_id", selectedShop.id)
       .eq("customer_id", customerId)
       .single();
 
@@ -67,7 +50,7 @@ export default function CustomerDetailPage() {
     const { data: transactions } = await supabase
       .from("transactions")
       .select("*")
-      .eq("shop_id", shops[0].id)
+      .eq("shop_id", selectedShop.id)
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false })
       .limit(50);

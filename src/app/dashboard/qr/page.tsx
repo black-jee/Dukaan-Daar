@@ -1,43 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
-import type { Shop } from "@/types/database";
+import { useMerchantShops } from "@/components/MerchantShopProvider";
 import Link from "next/link";
 
 export default function QRPage() {
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { selectedShop: shop, loading } = useMerchantShops();
   const [origin, setOrigin] = useState("");
   const [shareMessage, setShareMessage] = useState("");
 
   useEffect(() => {
     setOrigin(window.location.origin);
-  }, []);
-
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("shops")
-        .select("*")
-        .eq("owner_id", user.id)
-        .limit(1)
-        .maybeSingle();
-
-      setShop(data);
-      setLoading(false);
-    }
-    void load();
   }, []);
 
   async function shareInvite() {

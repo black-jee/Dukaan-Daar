@@ -6,10 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Store, Home, Users, QrCode, LogOut } from "lucide-react";
 import type { Profile } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { useMerchantShops } from "@/components/MerchantShopProvider";
 
 export default function DashboardNav({ profile }: { profile: Profile | null }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { shops, selectedShopId, setSelectedShopId } = useMerchantShops();
 
   async function handleLogout() {
     const supabase = createClient();
@@ -64,6 +66,14 @@ export default function DashboardNav({ profile }: { profile: Profile | null }) {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-700 text-white"><Store className="h-5 w-5" /></span>
             <span>KhataLink</span>
           </Link>
+          {isMerchant && shops.length > 1 && (
+            <label className="mx-2 min-w-0 flex-1 md:flex-none">
+              <span className="sr-only">Active shop</span>
+              <select aria-label="Select active shop" className="input min-h-10 max-w-44 truncate py-2 text-sm" value={selectedShopId} onChange={(event) => setSelectedShopId(event.target.value)}>
+                {shops.map((shop) => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
+              </select>
+            </label>
+          )}
           <div className="hidden items-center gap-4 md:flex">
             {nav()}
             <span className="max-w-36 truncate text-sm text-slate-500">{profile?.full_name}</span>

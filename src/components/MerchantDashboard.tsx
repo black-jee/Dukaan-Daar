@@ -5,12 +5,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import { Users, IndianRupee, TrendingUp, TrendingDown, Plus, Search } from "lucide-react";
-import type { Shop, ShopCustomer, Profile } from "@/types/database";
+import type { ShopCustomer, Profile } from "@/types/database";
+import { useMerchantShops } from "@/components/MerchantShopProvider";
 
 type CustomerWithProfile = ShopCustomer & { profiles: Profile | null };
 
 export default function MerchantDashboard({ userId }: { userId: string }) {
-  const [shop, setShop] = useState<Shop | null>(null);
+  void userId;
+  const { selectedShop: shop, loading: shopsLoading } = useMerchantShops();
   const [customers, setCustomers] = useState<CustomerWithProfile[]>([]);
   const [stats, setStats] = useState({
     totalOutstanding: 0,
@@ -25,28 +27,13 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
   const loadData = useCallback(async () => {
     const supabase = createClient();
     setLoadError(null);
-    const { data: shops, error: shopsError } = await supabase
-      .from("shops")
-      .select("*")
-      .eq("owner_id", userId)
-      .limit(1);
-
-    if (shopsError) {
-      setLoadError("We couldn’t load your shop. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    if (!shops?.[0]) {
-      setShop(null);
+    if (!shop) {
       setCustomers([]);
       setStats({ totalOutstanding: 0, todayCredit: 0, todayRecoveries: 0, activeCustomers: 0 });
       setLoading(false);
       return;
     }
-
-    const currentShop = shops[0];
-    setShop(currentShop);
+    const currentShop = shop;
 
     // These independent, shop-scoped reads run in parallel.
     const today = new Date();
@@ -87,11 +74,13 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
       activeCustomers: shopCustomers.filter((customer) => customer.status === "active").length,
     });
     setLoading(false);
-  }, [userId]);
+  }, [shop]);
 
   useEffect(() => {
+    if (shopsLoading) return;
+    setLoading(true);
     void loadData();
-  }, [loadData]);
+  }, [loadData, shopsLoading]);
 
   // Subscribe only after the active shop is known. Shop-scoped filtering keeps
   // activity in unrelated shops from refreshing this dashboard.
@@ -125,7 +114,7 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
     return name.includes(query) || phone.includes(query);
   });
 
-  if (loading) {
+  if (shopsLoading || loading) {
     return <div className="space-y-4" aria-live="polite" aria-busy="true"><div className="h-8 w-48 animate-pulse rounded-xl bg-slate-200" /><div className="grid grid-cols-2 gap-3"><div className="h-24 animate-pulse rounded-3xl bg-slate-200" /><div className="h-24 animate-pulse rounded-3xl bg-slate-200" /></div><div className="h-48 animate-pulse rounded-3xl bg-slate-200" /></div>;
   }
 

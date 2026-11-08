@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
-import type { Shop, ShopCustomer, Profile } from "@/types/database";
+import type { ShopCustomer, Profile } from "@/types/database";
+import { useMerchantShops } from "@/components/MerchantShopProvider";
 import { Suspense } from "react";
 
 const PRESETS = [10, 20, 50, 100, 200, 500];
@@ -15,8 +16,7 @@ function EntryForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedCustomer = searchParams.get("customer");
-
-  const [shop, setShop] = useState<Shop | null>(null);
+  const { selectedShop: shop, loading: shopsLoading } = useMerchantShops();
   const [customers, setCustomers] = useState<CustomerWithProfile[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(preselectedCustomer || "");
   const [amount, setAmount] = useState("");
@@ -29,8 +29,8 @@ function EntryForm() {
   const [idempotencyKey, setIdempotencyKey] = useState("");
 
   useEffect(() => {
-    load();
-  }, []);
+    if (!shopsLoading) void load();
+  }, [shop?.id, shopsLoading]);
 
   // A changed payload is a new transaction intent. Preserve the key only for
   // retries of the exact same request after an ambiguous network failure.
@@ -40,30 +40,9 @@ function EntryForm() {
 
   async function load() {
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const { data: shops } = await supabase
-      .from("shops")
-      .select("*")
-      .eq("owner_id", user.id)
-      .limit(1);
-
-    if (!shops?.[0]) {
-      setLoading(false);
-      return;
-    }
-    setShop(shops[0]);
-
-    const { data: sc } = await supabase
-      .from("shop_customers")
-      .select("*, profiles(*)")
-      .eq("shop_id", shops[0].id)
+    if (!shop) { setCustomers([]); setLoading(false); return; }
+    setLoading(true);
+    const { data: sc } = await supabase.from("shop_customers").select("*, profiles(*)").eq("shop_id", shop.id)
       .eq("status", "active")
       .order("profiles(full_name)");
 
@@ -108,7 +87,7 @@ function EntryForm() {
     setSubmitting(false);
   }
 
-  if (loading) {
+  if (shopsLoading || loading) {
     return <div className="py-20 text-center text-slate-500">Loading…</div>;
   }
 
