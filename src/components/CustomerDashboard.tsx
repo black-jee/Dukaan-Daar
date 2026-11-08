@@ -12,7 +12,10 @@ type LinkedShop = ShopCustomer & { shop: PublicShop | null };
 export default function CustomerDashboard({ userId }: { userId: string }) {
   const [links, setLinks] = useState<LinkedShop[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);\n  // Shop profile data is stable compared with ledger balances. Keep it locally\n  // so realtime balance updates do not trigger another public-shop query.\n  const shopCache = useRef(new Map<string, PublicShop>());
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Shop profile data is stable compared with ledger balances. Keep it locally
+  // so realtime balance updates do not trigger another public-shop query.
+  const shopCache = useRef(new Map<string, PublicShop>());
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
