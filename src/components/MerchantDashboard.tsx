@@ -7,9 +7,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Users, IndianRupee, TrendingUp, TrendingDown, Plus, Search } from "lucide-react";
 import type { Shop, ShopCustomer, Profile } from "@/types/database";
 
-type CustomerWithProfile = ShopCustomer & {
-  profiles: Profile | null;
-};
+type CustomerWithProfile = ShopCustomer & { profiles: Profile | null };
 
 export default function MerchantDashboard({ userId }: { userId: string }) {
   const [shop, setShop] = useState<Shop | null>(null);
@@ -25,37 +23,16 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
-    // Realtime subscription for balance updates
-    const channel = supabase
-      .channel("merchant-dashboard")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "shop_customers" },
-        () => loadData()
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "transactions" },
-        () => loadData()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId]);
-
-  useEffect(() => {
-    const supabase = createClient();
-    void loadData();
-    // Get merchant's shop
     const { data: shops } = await supabase
       .from("shops")
       .select("*")
       .eq("owner_id", userId)
       .limit(1);
 
-    if (!shops || shops.length === 0) {
+    if (!shops?.[0]) {
+      setShop(null);
+      setCustomers([]);
+      setStats({ totalOutstanding: 0, todayCredit: 0, todayRecoveries: 0, activeCustomers: 0 });
       setLoading(false);
       return;
     }
@@ -63,7 +40,7 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
     const currentShop = shops[0];
     setShop(currentShop);
 
-    // Independent shop-scoped reads run together to avoid a request waterfall.
+    // These independent, shop-scoped reads run in parallel.
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const [customersResult, todayResult] = await Promise.all([
@@ -78,51 +55,66 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
         .eq("shop_id", currentShop.id)
         .gte("created_at", today.toISOString()),
     ]);
-    const sc = customersResult.data;
-    const todayTx = todayResult.data;
-    setCustomers((sc as CustomerWithProfile[]) || []);
 
-    const totalOutstanding =
-      sc?.reduce((sum, customer) => sum + Number(customer.current_balance), 0) || 0;
-    const activeCustomers = sc?.filter((customer) => customer.status === "active").length || 0;
+    const shopCustomers = customersResult.data || [];
+    setCustomers(shopCustomers as CustomerWithProfile[]);
 
     let todayCredit = 0;
     let todayRecoveries = 0;
-    todayTx?.forEach((t) => {
-      if (t.type === "credit") todayCredit += Number(t.amount);
-      else todayRecoveries += Number(t.amount);
+    todayResult.data?.forEach((transaction) => {
+      if (transaction.type === "credit") todayCredit += Number(transaction.amount);
+      else todayRecoveries += Number(transaction.amount);
     });
 
     setStats({
-      totalOutstanding,
+      totalOutstanding: shopCustomers.reduce((sum, customer) => sum + Number(customer.current_balance), 0),
       todayCredit,
       todayRecoveries,
-      activeCustomers,
+      activeCustomers: shopCustomers.filter((customer) => customer.status === "active").length,
     });
     setLoading(false);
-  }, [loadData]);
+  }, [userId]);
 
-  const filtered = customers.filter((c) => {
-    const name = c.profiles?.full_name?.toLowerCase() || "";
-    const phone = c.profiles?.phone || "";
-    const q = search.toLowerCase();
-    return name.includes(q) || phone.includes(q);
+  useEffect(() => {
+    const supabase = createClient();
+    void loadData();
+    const channel = supabase
+      .channel(`merchant-dashboard-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "shop_customers" },
+        () => void loadData()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "transactions" },
+        () => void loadData()
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadData, userId]);
+
+  const filtered = customers.filter((customer) => {
+    const name = customer.profiles?.full_name?.toLowerCase() || "";
+    const phone = customer.profiles?.phone || "";
+    const query = search.toLowerCase();
+    return name.includes(query) || phone.includes(query);
   });
 
   if (loading) {
-    return <div className="py-20 text-center text-slate-500">Loading dashboard…</div>;
+    return <div className="space-y-4" aria-live="polite" aria-busy="true"><div className="h-8 w-48 animate-pulse rounded-xl bg-slate-200" /><div className="grid grid-cols-2 gap-3"><div className="h-24 animate-pulse rounded-3xl bg-slate-200" /><div className="h-24 animate-pulse rounded-3xl bg-slate-200" /></div><div className="h-48 animate-pulse rounded-3xl bg-slate-200" /></div>;
   }
 
   if (!shop) {
     return (
-      <div className="card mx-auto max-w-md text-center">
-        <h2 className="mb-2 text-xl font-bold">Set up your shop</h2>
-        <p className="mb-6 text-slate-600">
-          Create your shop profile to start tracking customer credit.
-        </p>
-        <Link href="/dashboard/shop" className="btn-primary">
-          Create Shop
-        </Link>
+      <div className="card mx-auto max-w-md py-10 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-800"><IndianRupee className="h-7 w-7" /></div>
+        <h2 className="mb-2 text-xl font-bold text-slate-950">Set up your shop</h2>
+        <p className="mb-6 text-sm leading-6 text-slate-600">Create your shop profile to start recording customer credit and payments.</p>
+        <Link href="/dashboard/shop" className="btn-primary">Create your shop</Link>
       </div>
     );
   }
@@ -133,108 +125,71 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
         <div className="min-w-0">
           <p className="eyebrow">Shop overview</p>
           <h1 className="page-title truncate">{shop.name}</h1>
-          <p className="page-subtitle">{shop.category} · This shop only</p>
+          <p className="page-subtitle">{shop.category} · This shop's ledger only</p>
         </div>
-        <Link
-          href="/dashboard/entry"
-          className="btn-primary gap-2"
-        >
-          <Plus className="h-5 w-5" />
-          New Entry
+        <Link href="/dashboard/entry" className="btn-primary min-h-12 shrink-0 gap-2">
+          <Plus className="h-5 w-5" /> New entry
         </Link>
       </div>
 
-      {/* Metrics */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="card">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <IndianRupee className="h-4 w-4" />
-            Outstanding
-          </div>
-          <p className="mt-1 amount text-2xl text-debit">
-            {formatCurrency(stats.totalOutstanding)}
-          </p>
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 sm:text-sm"><IndianRupee className="h-4 w-4" /> Outstanding</div>
+          <p className="amount mt-2 text-2xl text-rose-700">{formatCurrency(stats.totalOutstanding)}</p>
+          <p className="mt-1 text-xs text-slate-500">This shop only</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <TrendingUp className="h-4 w-4" />
-            Today Credit
-          </div>
-          <p className="mt-1 amount text-2xl text-slate-900">
-            {formatCurrency(stats.todayCredit)}
-          </p>
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 sm:text-sm"><TrendingUp className="h-4 w-4" /> Today's credit</div>
+          <p className="amount mt-2 text-2xl text-slate-950">{formatCurrency(stats.todayCredit)}</p>
+          <p className="mt-1 text-xs text-slate-500">Added today</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <TrendingDown className="h-4 w-4" />
-            Today Recovered
-          </div>
-          <p className="mt-1 amount text-2xl text-credit">
-            {formatCurrency(stats.todayRecoveries)}
-          </p>
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 sm:text-sm"><TrendingDown className="h-4 w-4" /> Recovered</div>
+          <p className="amount mt-2 text-2xl text-emerald-700">{formatCurrency(stats.todayRecoveries)}</p>
+          <p className="mt-1 text-xs text-slate-500">Received today</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Users className="h-4 w-4" />
-            Customers
-          </div>
-          <p className="mt-1 amount text-2xl text-slate-900">
-            {stats.activeCustomers}
-          </p>
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 sm:text-sm"><Users className="h-4 w-4" /> Customers</div>
+          <p className="amount mt-2 text-2xl text-slate-950">{stats.activeCustomers}</p>
+          <p className="mt-1 text-xs text-slate-500">Active accounts</p>
         </div>
       </div>
 
-      {/* Search + list */}
-      <div className="card">
+      <section className="card">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-slate-950">Your customers</h2>
+          <p className="mt-1 text-xs text-slate-500">Balances shown here belong only to {shop.name}.</p>
+        </div>
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            placeholder="Search customer by name or phone…"
-            className="input pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <input type="search" placeholder="Search by name or phone…" aria-label="Search customers by name or phone" className="input pl-10" value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
 
         {filtered.length === 0 ? (
-          <p className="py-8 text-center text-slate-500">
-            {customers.length === 0
-              ? "No customers yet. Share your QR code!"
-              : "No matching customers."}
-          </p>
+          <div className="py-8 text-center">
+            <p className="font-semibold text-slate-800">{customers.length === 0 ? "No customers yet" : "No matching customers"}</p>
+            <p className="mt-1 text-sm text-slate-500">{customers.length === 0 ? "Share your shop QR code to invite customers." : "Try another name or phone number."}</p>
+            {customers.length === 0 && <Link href="/dashboard/qr" className="mt-4 inline-flex text-sm font-semibold text-primary-700">Open shop QR code →</Link>}
+          </div>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {filtered.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/dashboard/customers/${c.customer_id}`}
-                  className="flex min-h-16 items-center justify-between gap-3 rounded-xl px-2 py-3 transition hover:bg-slate-50"
-                >
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {c.profiles?.full_name || "Unknown"}
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      {c.profiles?.phone || "No phone"} · Limit {formatCurrency(c.credit_limit)}
-                    </p>
+            {filtered.map((customer) => (
+              <li key={customer.id}>
+                <Link href={`/dashboard/customers/${customer.customer_id}`} className="flex min-h-16 items-center justify-between gap-3 rounded-xl px-2 py-3 transition hover:bg-slate-50">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-900">{customer.profiles?.full_name || "Unknown"}</p>
+                    <p className="mt-1 truncate text-xs text-slate-500">{customer.profiles?.phone || "No phone"} · Limit {formatCurrency(customer.credit_limit)}</p>
                   </div>
-                  <div className="text-right">
-                    <p
-                      className={`amount text-lg ${
-                        Number(c.current_balance) > 0 ? "text-debit" : "text-credit"
-                      }`}
-                    >
-                      {formatCurrency(c.current_balance)}
-                    </p>
-                    <p className="text-xs capitalize text-slate-400">{c.status}</p>
+                  <div className="shrink-0 text-right">
+                    <p className={`amount text-lg ${Number(customer.current_balance) > 0 ? "text-rose-700" : "text-emerald-700"}`}>{formatCurrency(customer.current_balance)}</p>
+                    <p className="mt-0.5 text-xs capitalize text-slate-500">{customer.status}</p>
                   </div>
                 </Link>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }
