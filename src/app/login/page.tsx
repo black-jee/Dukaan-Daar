@@ -8,7 +8,6 @@ import { Store } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,6 +16,7 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = createClient();
     setLoading(true);
     setError(null);
 
@@ -36,6 +36,7 @@ export default function LoginPage() {
   }
 
   async function handleGoogleLogin() {
+    const supabase = createClient();
     setGoogleLoading(true);
     setError(null);
 
