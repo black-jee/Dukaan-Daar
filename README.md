@@ -109,7 +109,7 @@ khatalink/
 │   ├── components/
 │   ├── lib/supabase/           # Browser + server clients + middleware
 │   └── types/database.ts       # Generated-style types
-├── supabase/config.toml       # Supabase CLI project config\n├── supabase/migrations/       # Ordered, versioned database migrations\n├── supabase/tests/            # Disposable PostgreSQL integration tests\n├── supabase/schema.sql       # Reference bootstrap schema
+├── supabase/config.toml       # Supabase CLI project config\n├── supabase/migrations/       # Ordered, versioned database migrations\n├── supabase/tests/            # Disposable PostgreSQL integration tests\n├── supabase/schema.sql       # Deprecated comment-only pointer; use migrations
 └── ...
 ```
 
