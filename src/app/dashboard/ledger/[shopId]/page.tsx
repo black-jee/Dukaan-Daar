@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, CreditCard, Store } from "lucide-react";
@@ -18,8 +18,10 @@ export default function LedgerPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const requestId = useRef(0);
 
   const load = useCallback(async () => {
+    const request = ++requestId.current;
     const supabase = createClient();
     setLoadError(null);
     // This is a browser-side identity hint only. Every ledger query remains
@@ -28,7 +30,9 @@ export default function LedgerPage() {
     // before the three independent, shop-scoped reads below.
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     const user = session?.user;
+    if (request !== requestId.current) return;
     if (sessionError || !user) {
+      setCustomerId(null);
       setLoadError("Please sign in to view this passbook.");
       setLoading(false);
       return;
@@ -41,6 +45,7 @@ export default function LedgerPage() {
       supabase.from("transactions").select("*").eq("shop_id", shopId).eq("customer_id", user.id).order("created_at", { ascending: false }).limit(100),
     ]);
 
+    if (request !== requestId.current) return;
     if (shopResult.error || linkResult.error || transactionResult.error) {
       setLoadError("We couldn't load this passbook. Please try again.");
       setLoading(false);
@@ -54,7 +59,15 @@ export default function LedgerPage() {
   }, [shopId]);
 
   useEffect(() => {
+    setLoading(true);
+    setShop(null);
+    setLink(null);
+    setTxs([]);
+    setCustomerId(null);
     void load();
+    return () => {
+      requestId.current += 1;
+    };
   }, [load]);
 
   useEffect(() => {
