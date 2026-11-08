@@ -46,10 +46,11 @@ The repository now contains an ordered, CLI-managed migration chain:
 
 - `supabase/migrations/20261108000000_initial_schema.sql`
 - `supabase/migrations/20261108000100_harden_financial_ledger.sql`
+- `supabase/migrations/20261108000200_prevent_financial_history_cascade_deletes.sql`
 
 For a disposable local Supabase stack, run `supabase start` and `supabase db reset` to replay the migrations. For a remote project, authenticate and link the intended project, then inspect the proposed changes with `supabase db push --dry-run --remote`. Applying with `supabase db push --remote` changes that remote database; do not run it against the connected project until the owner explicitly approves the live migration.
 
-The hardening migration removes direct client writes to balances and ledger rows, scopes financial records to participants, restricts transaction creation to the shop owner, rejects overpayments, adds idempotency and audited compensating reversals, and exposes shop discovery only through a restricted `public_shops` view. Direct reads from `shops` are owner-scoped. Do not accept real users until the migration chain, Auth/JWT isolation, storage, backup/restore, and functional acceptance tests are verified.
+The hardening migration removes direct client writes to balances and ledger rows, scopes financial records to participants, restricts transaction creation to the shop owner, rejects overpayments, adds idempotency and audited compensating reversals, and exposes shop discovery only through a restricted `public_shops` view. The third migration prevents privileged account/shop deletion from cascading into ledger history. Account deletion is blocked until a reviewed PII-retention workflow exists. Direct reads from `shops` are owner-scoped. Do not accept real users until the migration chain, Auth/JWT isolation, storage, backup/restore, and functional acceptance tests are verified.
 
 ### 3. Clone / Extract this repo
 ```bash
