@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
@@ -12,7 +12,6 @@ type CustomerWithProfile = ShopCustomer & {
 };
 
 export default function MerchantDashboard({ userId }: { userId: string }) {
-  const supabase = createClient();
   const [shop, setShop] = useState<Shop | null>(null);
   const [customers, setCustomers] = useState<CustomerWithProfile[]>([]);
   const [stats, setStats] = useState({
@@ -24,8 +23,8 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
+  const loadData = useCallback(async () => {
+    const supabase = createClient();
     // Realtime subscription for balance updates
     const channel = supabase
       .channel("merchant-dashboard")
@@ -46,7 +45,9 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
     };
   }, [userId]);
 
-  async function loadData() {
+  useEffect(() => {
+    const supabase = createClient();
+    void loadData();
     // Get merchant's shop
     const { data: shops } = await supabase
       .from("shops")
@@ -99,7 +100,7 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
       activeCustomers,
     });
     setLoading(false);
-  }
+  }, [loadData]);
 
   const filtered = customers.filter((c) => {
     const name = c.profiles?.full_name?.toLowerCase() || "";
