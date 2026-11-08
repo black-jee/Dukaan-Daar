@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
@@ -12,7 +12,7 @@ type LinkedShop = ShopCustomer & { shop: PublicShop | null };
 export default function CustomerDashboard({ userId }: { userId: string }) {
   const [links, setLinks] = useState<LinkedShop[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);\n  // Shop profile data is stable compared with ledger balances. Keep it locally\n  // so realtime balance updates do not trigger another public-shop query.\n  const shopCache = useRef(new Map<string, PublicShop>());
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -30,18 +30,26 @@ export default function CustomerDashboard({ userId }: { userId: string }) {
       return;
     }
 
-    const shopIds = (memberships || []).map((membership) => membership.shop_id);
-    const { data: shops, error: shopsError } = shopIds.length
-      ? await supabase.from("public_shops").select("*").in("id", shopIds)
-      : { data: [], error: null };
+    const shopIds = [...new Set((memberships || []).map((membership) => membership.shop_id))];
+    const missingShopIds = shopIds.filter((shopId) => !shopCache.current.has(shopId));
+    if (missingShopIds.length > 0) {
+      const { data: shops, error: shopsError } = await supabase
+        .from("public_shops")
+        .select("*")
+        .in("id", missingShopIds);
 
-    if (shopsError) {
-      setLoadError("Your shop details couldn't be loaded. Please refresh.");
-      setLoading(false);
-      return;
+      if (shopsError) {
+        setLoadError("Your shop details couldn't be loaded. Please refresh.");
+        setLoading(false);
+        return;
+      }
+
+      for (const shop of shops || []) {
+        shopCache.current.set(shop.id, shop);
+      }
     }
 
-    const shopById = new Map((shops || []).map((shop) => [shop.id, shop]));
+    const shopById = shopCache.current;
     setLinks(
       (memberships || []).map((membership) => ({
         ...membership,
