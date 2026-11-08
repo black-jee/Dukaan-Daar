@@ -9,7 +9,7 @@ The ordered Supabase CLI migration chain is:
 1. `supabase/migrations/20261108000000_initial_schema.sql`
 2. `supabase/migrations/20261108000100_harden_financial_ledger.sql`
 
-The initial migration is the versioned base schema. The separate `supabase/schema.sql` is a reference copy and is not a standalone production setup. CI replays the timestamped migration chain against disposable PostgreSQL 17.
+The initial migration is the versioned base schema. `supabase/schema.sql` is a deprecated, comment-only pointer; do not execute it. The timestamped migrations above are the only canonical database setup path. CI replays the timestamped migration chain against disposable PostgreSQL 17.
 
 For a remote project, link only the intended project and inspect proposed changes with `supabase db push --dry-run --remote`. The corresponding `supabase db push --remote` applies migrations. Do not run it against the connected project without explicit approval.
 
@@ -21,6 +21,7 @@ For a remote project, link only the intended project and inspect proposed change
 - Public discovery is served through `public.public_shops`, a security-barrier view containing only `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. Anonymous users have no direct SELECT privilege on `public.shops`; authenticated direct table reads are restricted by RLS to the shop owner.
 - Customer discovery and QR join pages use the restricted view. The customer join policy uses the same active-shop view and a private, fixed-search-path role helper to avoid recursive RLS evaluation.
 - The connected Supabase project `wzsvvwhvbbbrxuaqdyue` was rechecked read-only: it remains healthy with zero application tables and zero recorded migrations.
+- The deprecated `supabase/schema.sql` file was converted to a comment-only pointer to prevent accidental use of the old prototype schema.
 - PR #1 remains open, draft, and unmerged. No production migration or deployment has been performed.
 
 ## Product and security decisions
