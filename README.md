@@ -73,33 +73,11 @@ Open http://localhost:3000
 
 ---
 
-## Deploy to Cloudflare Pages
+## Deployment
 
-### Option A – Official Next.js on Cloudflare (recommended)
-1. Push this repo to GitHub
-2. In Cloudflare Dashboard → Workers & Pages → Create → Connect to Git
-3. Framework preset: **Next.js**
-4. Build command: `npx @cloudflare/next-on-pages@1` (or use OpenNext)
-5. Add environment variables:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-6. Deploy
+The application has a successful CI production build, but no hosting provider has been validated as a live release target yet. Vercel is the simplest standard Next.js deployment option: connect this GitHub repository, choose the Next.js preset, and configure the environment variables below. Use a preview deployment first and verify authentication redirects, cookies, protected routes, and database access before promoting production.
 
-**Simpler alternative for most users:**
-
-Use **Vercel** (zero-config for Next.js):
-```bash
-npm i -g vercel
-vercel
-```
-Add the same env vars in the Vercel dashboard.
-
-Or stay on Cloudflare with the community adapter:
-```bash
-npm install -D @cloudflare/next-on-pages
-npx @cloudflare/next-on-pages
-```
-Then deploy the `.vercel/output/static` folder (or follow current Cloudflare Next.js docs).
+Cloudflare Workers with the OpenNext adapter is an alternative, but it requires its own adapter/runtime configuration and has not been verified for this branch. Do not use the retired `@cloudflare/next-on-pages` instructions for this App Router application.
 
 ### Environment Variables (Production)
 | Variable | Required | Notes |
