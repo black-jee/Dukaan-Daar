@@ -50,9 +50,7 @@ export const getDashboardContext = cache(async () => {
   // than making a second Auth user-info request on every dashboard navigation.
   // getClaims verifies the token (using cached JWKS where supported); RLS still
   // authorizes all subsequent database reads and writes independently.
-  const {
-    data: { claims },
-  } = await supabase.auth.getClaims();
+  const { data: claims } = await supabase.auth.getClaims();
 
   if (!claims?.sub) {
     return { user: null, profile: null };
