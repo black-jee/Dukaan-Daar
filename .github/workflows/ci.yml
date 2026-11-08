@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "chore/production-readiness", "feat/google-oauth"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "chore/production-readiness"]
 
 permissions:
   contents: read
@@ -65,6 +65,24 @@ jobs:
 
       - name: Prevent parent-row deletion from cascading into ledger history
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000200_prevent_financial_history_cascade_deletes.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Add one-time Google signup role claims
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000300_secure_google_signup_role_claim.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Verify Google signup roles are one-time and existing roles are immutable
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/google_signup_role_claim.sql
         env:
           PGHOST: localhost
           PGPORT: 5432

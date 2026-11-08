@@ -262,6 +262,12 @@ export type Database = {
           reverse_reason: string | null;
         };
       };
+      claim_google_signup_role: {
+        Args: {
+          p_role: "merchant" | "customer";
+        };
+        Returns: boolean;
+      };
     };
     Views: {
       public_shops: {
