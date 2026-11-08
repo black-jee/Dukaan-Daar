@@ -7,7 +7,6 @@ import type { PublicShop } from "@/types/database";
 import { Store, MapPin } from "lucide-react";
 
 export default function DiscoverPage() {
-  const supabase = createClient();
   const [shops, setShops] = useState<PublicShop[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -17,6 +16,7 @@ export default function DiscoverPage() {
   }, []);
 
   async function load() {
+    const supabase = createClient();
     const { data } = await supabase
       .from("public_shops")
       .select("*")
