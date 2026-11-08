@@ -81,6 +81,15 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: khatalink_test
 
+      - name: Replace security-definer public shop view with read-only directory table
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000400_public_shop_directory.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
       - name: Verify Google signup roles are one-time and existing roles are immutable
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/google_signup_role_claim.sql
         env:
@@ -92,6 +101,15 @@ jobs:
 
       - name: Run ledger, idempotency, reversal and RLS smoke tests
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/financial_ledger_smoke.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
+      - name: Verify public shop directory isolation and synchronization
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/public_shop_directory.sql
         env:
           PGHOST: localhost
           PGPORT: 5432
