@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
 
@@ -38,3 +39,24 @@ export async function createClient() {
     },
   });
 }
+
+// Layout and page Server Components share this request-scoped lookup.
+// React cache deduplicates the auth/profile round trips during one render.
+export const getDashboardContext = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { user: null, profile: null };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  return { user, profile };
+});
