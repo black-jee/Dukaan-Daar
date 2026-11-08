@@ -17,6 +17,7 @@ export default function LedgerPage() {
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -70,10 +71,25 @@ export default function LedgerPage() {
     return () => { void supabase.removeChannel(channel); };
   }, [customerId, load, shopId]);
 
+  useEffect(() => {
+    const balance = Number(link?.current_balance ?? 0);
+    if (balance <= 0) {
+      setPaymentAmount("");
+      return;
+    }
+    setPaymentAmount((current) => {
+      const parsed = Number(current);
+      return !current || !Number.isFinite(parsed) || parsed <= 0 || parsed > balance
+        ? balance.toFixed(2)
+        : current;
+    });
+  }, [link?.current_balance]);
+
   function openUPI() {
     if (!shop?.upi_id || !link) return;
-    const amount = Number(link.current_balance);
-    if (amount <= 0) return;
+    const balance = Number(link.current_balance);
+    const amount = Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > balance) return;
     const upiUrl = `upi://pay?pa=${encodeURIComponent(shop.upi_id)}&pn=${encodeURIComponent(shop.name)}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent("Khata payment - " + shop.name)}`;
     window.location.href = upiUrl;
   }
@@ -118,14 +134,22 @@ export default function LedgerPage() {
           {settled ? "Your account with this shop is settled" : "This amount belongs only to this shop"}
         </div>
         {!settled && shop.upi_id && (
-          <button onClick={openUPI} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 font-bold text-slate-950 transition active:scale-[.99] hover:bg-slate-100">
-            <CreditCard className="h-5 w-5" /> Pay {formatCurrency(balance)} via UPI
-          </button>
+          <div className="mt-6 space-y-3">
+            <label htmlFor="payment-amount" className="block text-sm font-semibold text-slate-200">How much would you like to pay?</label>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold text-slate-300">₹</span>
+              <input id="payment-amount" type="number" inputMode="decimal" min="0.01" max={balance.toFixed(2)} step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} aria-describedby="payment-amount-help" className="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-lg font-semibold text-white outline-none focus:border-white focus:ring-2 focus:ring-white/30" />
+              <button type="button" onClick={() => setPaymentAmount(balance.toFixed(2))} className="min-h-12 rounded-xl border border-slate-600 px-3 text-sm font-semibold text-slate-200 hover:bg-slate-800">Full</button>
+            </div>
+            <p id="payment-amount-help" className="text-xs text-slate-300">Pay any amount up to {formatCurrency(balance)}. You can clear the rest later.</p>
+            <button onClick={openUPI} disabled={!Number.isFinite(Number(paymentAmount)) || Number(paymentAmount) <= 0 || Number(paymentAmount) > balance} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 font-bold text-slate-950 transition active:scale-[.99] hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">
+              <CreditCard className="h-5 w-5" /> Pay {formatCurrency(Number(paymentAmount) || 0)} via UPI
+            </button>
+            <p className="text-xs leading-5 text-slate-300">UPI opens your payment app. Your passbook changes only after the shop verifies and records the payment. For cash, pay the shopkeeper and ask them to record the amount you paid.</p>
+          </div>
         )}
-        {!settled && shop.upi_id && (
-          <p className="mt-3 text-xs leading-5 text-slate-300">
-            UPI opens your payment app. Your passbook changes only after the shop verifies and records the payment.
-          </p>
+        {!settled && !shop.upi_id && (
+          <p className="mt-6 text-sm leading-5 text-slate-300">You can pay any part of this due directly to the shopkeeper in cash. Ask them to record the amount received; your passbook updates after they record it.</p>
         )}
       </section>
 
