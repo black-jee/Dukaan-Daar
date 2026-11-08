@@ -16,7 +16,7 @@ For a remote project, link only the intended project and inspect proposed change
 
 ## Latest verified checkpoint
 
-- Commit `6665c0340cb467879114aadf2360dde1c32fbcf4` passed GitHub Actions run #164: all three CI jobs succeeded, including full migration replay, financial ledger/RLS/idempotency/reversal/concurrency tests, privileged-delete safeguards, a disposable PostgreSQL dump/restore check, real local Supabase Auth/PostgREST with two merchants and two customers, dependency audits, TypeScript, lint, and production build.
+- Commit `fc34b45a9e3455600f77088020c272f128a4741f` passed GitHub Actions run #165 (verified 2026-11-08): all three CI jobs succeeded, including full migration replay, financial ledger/RLS/idempotency/reversal/concurrency tests, privileged-delete safeguards, a disposable PostgreSQL dump/restore check, real local Supabase Auth/PostgREST with two merchants and two customers, dependency audits, TypeScript, lint, and production build.
 - The npm audit report for the dependency tree used by this branch reported **zero vulnerabilities** in both the full dependency tree and production-only tree.
 - A committed `package-lock.json` now makes installs reproducible; CI uses `npm ci`.
 - Public discovery is served through `public.public_shops`, a security-barrier view containing only `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. Anonymous users have no direct SELECT privilege on `public.shops`; authenticated direct table reads are restricted by RLS to the shop owner. CI additionally verifies anonymous denial on profiles, customer links, transactions and reversal records, plus cross-customer isolation. It also verifies that privileged Auth-user/profile/shop deletes are blocked when they could erase ledger history.
@@ -24,6 +24,7 @@ For a remote project, link only the intended project and inspect proposed change
 - The connected Supabase project `wzsvvwhvbbbrxuaqdyue` was rechecked read-only: it remains healthy with zero application tables and zero recorded migrations. A read-only Storage inspection found zero buckets and zero Storage RLS policies. The repository has no implemented upload feature or Storage API usage; Storage is intentionally left unconfigured until a concrete upload requirement exists. See `docs/STORAGE_SECURITY_DESIGN.md` for future controls and isolated test requirements.
 - The deprecated `supabase/schema.sql` file was converted to a comment-only pointer to prevent accidental use of the old prototype schema.
 - PR #1 remains open, draft, and unmerged. No production migration or deployment has been performed.
+- The latest verified run is [GitHub Actions #165](https://github.com/black-jee/Dukaan-Daar/actions/runs/42450668942); its three jobs completed successfully. Keep the branch on `chore/production-readiness`; do not merge PR #1 as part of preview preparation.
 
 ## Product and security decisions
 
@@ -72,3 +73,29 @@ CI creates two independent merchant accounts (M1, M2) and two customer accounts 
 - Take and verify backups before storing real financial data.
 - Monitor Supabase Auth, Postgres, and application errors; never log tokens, cookies, passwords, or full personal/financial records.
 - Do not merge PR #1, apply live migrations, or promote a deployment until the owner explicitly approves.
+
+
+## Preview deployment gate (reviewed 2026-11-08)
+
+A Vercel preview is the preferred first hosting validation because this is a standard Next.js App Router application. However, a preview that exercises authentication and dashboard routes needs a reachable Supabase API whose schema matches the migrations.
+
+The current app middleware calls Supabase Auth session validation for every matched request and throws when the public Supabase URL/key are missing. The connected hosted project currently has no application tables or migrations. Therefore:
+- Do not deploy a preview configured against the empty hosted project and describe it as functional.
+- Do not apply migrations to that hosted project merely to unblock preview. That is a separate, explicit database approval.
+- A genuine end-to-end preview requires a separate disposable Supabase project/environment with the canonical migrations applied, or explicit approval to prepare the intended hosted project. Keep preview and production credentials separate.
+- A static/build-only preview is not a substitute: login, signup, middleware session refresh, dashboard profile reads, shop discovery, QR joining, and ledger actions cannot be accepted without a live isolated backend.
+
+### Hosting configuration checklist
+
+For a Vercel preview connected to an isolated test backend:
+1. Import `black-jee/Dukaan-Daar` and select branch `chore/production-readiness`; keep PR #1 draft and unmerged.
+2. Use the Next.js framework preset and repository root. Do not add Cloudflare/OpenNext adapter settings to Vercel.
+3. Set Preview-only variables: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for the isolated test project. The legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` is fallback-only. Never add a service-role/secret key to any `NEXT_PUBLIC_*` variable.
+4. In that isolated Supabase Auth configuration, add the exact Vercel preview origin and callback URL(s) used by the app to allowed redirect URLs; set the site URL deliberately. Do not use a wildcard redirect that permits arbitrary origins.
+5. Enable email confirmation for a production-like test and verify email delivery separately. The CI local stack disables confirmation only for automated integration tests.
+6. Test signup, confirmation callback, login, refresh, logout, password recovery, protected-route redirects, merchant/customer separation, shop creation, QR join, transaction entry, and reversal on mobile and desktop.
+7. Confirm no preview deployment variables are inherited by Production. Do not promote the preview to production.
+
+### Current preview status
+
+**Blocked pending an isolated hosted backend or explicit live-database approval.** The repository build and CI are green, but no browser-based end-to-end suite or hosted preview has been verified. This is a hosting/backend dependency, not a reason to weaken RLS or skip the database release gate.
