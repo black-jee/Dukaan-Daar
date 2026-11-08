@@ -9,12 +9,12 @@ import type { ShopCustomer, Profile } from "@/types/database";
 type Row = ShopCustomer & { profiles: Profile | null };
 
 export default function CustomersPage() {
-  const supabase = createClient();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
+      const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
