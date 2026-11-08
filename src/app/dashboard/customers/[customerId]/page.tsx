@@ -10,7 +10,6 @@ import type { Profile, ShopCustomer, Transaction } from "@/types/database";
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params.customerId as string;
-  const supabase = createClient();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [link, setLink] = useState<ShopCustomer | null>(null);
@@ -26,6 +25,7 @@ export default function CustomerDetailPage() {
   }, [customerId]);
 
   async function load() {
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -78,6 +78,7 @@ export default function CustomerDetailPage() {
 
   async function updateSettings() {
     if (!link) return;
+    const supabase = createClient();
     const parsedLimit = Number(creditLimit);
     if (!Number.isFinite(parsedLimit) || parsedLimit < 0) {
       setError("Enter a valid non-negative credit limit.");
