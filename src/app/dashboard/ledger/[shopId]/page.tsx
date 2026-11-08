@@ -49,15 +49,15 @@ export default function LedgerPage() {
     const supabase = createClient();
     void load();
     const channel = supabase
-      .channel(`customer-ledger-${shopId}-${Math.random().toString(36).slice(2)}`)
+      .channel(`customer-ledger-${shopId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "transactions", filter: `shop_id=eq.${shopId}` },
+        { event: "*", schema: "public", table: "transactions", filter: `customer_id=eq.${link?.customer_id || ""}` },
         () => void load()
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "shop_customers", filter: `shop_id=eq.${shopId}` },
+        { event: "*", schema: "public", table: "shop_customers", filter: `customer_id=eq.${link?.customer_id || ""}` },
         () => void load()
       )
       .subscribe();
@@ -147,7 +147,7 @@ export default function LedgerPage() {
                   <p className="mt-1 text-xs text-slate-500">{formatDate(transaction.created_at)}{transaction.note ? ` · ${transaction.note}` : ""}{transaction.is_reversed ? " · Reversed" : ""}</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className={`amount text-lg ${transaction.type === "credit" ? "text-rose-700" : "text-emerald-700"}`}>
+                  <p className={`amount text-lg ${transaction.is_reversed ? "text-slate-400 line-through" : transaction.type === "credit" ? "text-rose-700" : "text-emerald-700"}`}>
                     {transaction.type === "credit" ? "+" : "−"}{formatCurrency(transaction.amount)}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-500">Balance: {formatCurrency(transaction.running_balance)}</p>
