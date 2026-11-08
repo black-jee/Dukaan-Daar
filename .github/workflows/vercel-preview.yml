@@ -1,6 +1,8 @@
 name: Vercel Preview Deployment
 
 on:
+  push:
+    branches: ["chore/production-readiness"]
   workflow_dispatch:
 
 permissions:
