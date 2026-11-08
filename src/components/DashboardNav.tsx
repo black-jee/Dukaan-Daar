@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Store, Home, Users, QrCode, LogOut } from "lucide-react";
 import type { Profile } from "@/types/database";
@@ -10,6 +11,7 @@ import { useMerchantShops } from "@/components/MerchantShopProvider";
 
 export default function DashboardNav({ profile }: { profile: Profile | null }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { shops, selectedShopId, setSelectedShopId } = useMerchantShops();
 
   async function handleLogout() {
@@ -25,6 +27,17 @@ export default function DashboardNav({ profile }: { profile: Profile | null }) {
   }
 
   const isMerchant = profile?.role === "merchant";
+
+  // Warm the small set of dashboard tab routes as soon as the authenticated
+  // shell is mounted. This preloads route code/RSC payloads before a tap.
+  useEffect(() => {
+    const routes = isMerchant
+      ? ["/dashboard", "/dashboard/customers", "/dashboard/shop", "/dashboard/qr"]
+      : ["/dashboard", "/dashboard/discover"];
+    for (const route of routes) {
+      if (route !== pathname) router.prefetch(route);
+    }
+  }, [isMerchant, pathname, router]);
   const navItems = isMerchant
     ? [
         { href: "/dashboard", label: "Overview", icon: Home },
