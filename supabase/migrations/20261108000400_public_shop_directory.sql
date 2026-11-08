@@ -3,6 +3,8 @@
 -- while keeping the private shops table behind its owner-only RLS policies.
 BEGIN;
 
+DROP POLICY shop_customers_customer_join ON public.shop_customers;
+
 DROP VIEW public.public_shops;
 
 CREATE TABLE public.public_shops (
@@ -26,6 +28,20 @@ CREATE POLICY "Public shop directory is readable"
   FOR SELECT
   TO anon, authenticated
   USING (true);
+
+CREATE POLICY shop_customers_customer_join
+  ON public.shop_customers
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    customer_id = (SELECT auth.uid())
+    AND private.current_profile_role() = 'customer'
+    AND EXISTS (
+      SELECT 1
+      FROM public.public_shops s
+      WHERE s.id = shop_customers.shop_id
+    )
+  );
 
 -- This function is deliberately private and callable only by its trigger.
 -- SECURITY DEFINER is required because shop owners must not receive write
