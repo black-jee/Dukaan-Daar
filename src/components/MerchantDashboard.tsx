@@ -20,14 +20,22 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
   });
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
-    const { data: shops } = await supabase
+    setLoadError(null);
+    const { data: shops, error: shopsError } = await supabase
       .from("shops")
       .select("*")
       .eq("owner_id", userId)
       .limit(1);
+
+    if (shopsError) {
+      setLoadError("We couldn’t load your shop. Please try again.");
+      setLoading(false);
+      return;
+    }
 
     if (!shops?.[0]) {
       setShop(null);
@@ -55,6 +63,12 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
         .eq("shop_id", currentShop.id)
         .gte("created_at", today.toISOString()),
     ]);
+
+    if (customersResult.error || todayResult.error) {
+      setLoadError("Your shop figures couldn’t be loaded. No balances have been changed. Please retry.");
+      setLoading(false);
+      return;
+    }
 
     const shopCustomers = customersResult.data || [];
     setCustomers(shopCustomers as CustomerWithProfile[]);
@@ -106,6 +120,16 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
 
   if (loading) {
     return <div className="space-y-4" aria-live="polite" aria-busy="true"><div className="h-8 w-48 animate-pulse rounded-xl bg-slate-200" /><div className="grid grid-cols-2 gap-3"><div className="h-24 animate-pulse rounded-3xl bg-slate-200" /><div className="h-24 animate-pulse rounded-3xl bg-slate-200" /></div><div className="h-48 animate-pulse rounded-3xl bg-slate-200" /></div>;
+  }
+
+  if (loadError) {
+    return (
+      <section role="alert" className="card mx-auto max-w-lg text-center">
+        <h2 className="font-bold text-slate-950">Dashboard temporarily unavailable</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">{loadError}</p>
+        <button onClick={() => { setLoading(true); void loadData(); }} className="btn-primary mx-auto mt-4">Try again</button>
+      </section>
+    );
   }
 
   if (!shop) {
