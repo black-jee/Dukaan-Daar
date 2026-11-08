@@ -79,16 +79,18 @@ function EntryForm() {
 
     if (error) {
       setError(error.message);
-    } else {
-      setIdempotencyKey("");
-      setSuccess(true);
-      // Haptic / sound feedback simulation
-      if (navigator.vibrate) navigator.vibrate(50);
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 800);
+      setSubmitting(false);
+      return;
     }
-    setSubmitting(false);
+
+    // Keep the form locked and retain the idempotency key until navigation.
+    // Re-enabling here would let a fast second tap create a new transaction.
+    setSuccess(true);
+    // Haptic feedback after the database confirms the transaction.
+    if (navigator.vibrate) navigator.vibrate(50);
+    window.setTimeout(() => {
+      router.push("/dashboard");
+    }, 800);
   }
 
   if (shopsLoading || loading) {
