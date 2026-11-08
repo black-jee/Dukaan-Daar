@@ -60,17 +60,26 @@ export default function LedgerPage() {
   useEffect(() => {
     if (!customerId) return;
     const supabase = createClient();
+    const refreshForThisShop = (payload: { new: Record<string, unknown>; old: Record<string, unknown> }) => {
+      // Realtime is filtered by customer because Postgres Changes accepts one
+      // server-side filter here. Ignore other-shop events in the client.
+      // For DELETE events where replica identity omits shop_id, fall back to
+      // refreshing rather than risk missing a legitimate ledger change.
+      const changedShopId = payload.new.shop_id ?? payload.old.shop_id;
+      if (typeof changedShopId === "string" && changedShopId !== shopId) return;
+      void load();
+    };
     const channel = supabase
       .channel(`customer-ledger-${shopId}-${customerId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "transactions", filter: `customer_id=eq.${customerId}` },
-        () => void load()
+        refreshForThisShop
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "shop_customers", filter: `customer_id=eq.${customerId}` },
-        () => void load()
+        refreshForThisShop
       )
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
