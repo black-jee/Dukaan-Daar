@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["main", "chore/production-readiness", "feat/google-oauth"]
+    branches: ["main", "chore/production-readiness", "feat/google-oauth", "feat/launch-quality-ux"]
   pull_request:
-    branches: ["main", "chore/production-readiness"]
+    branches: ["main", "chore/production-readiness", "feat/google-oauth"]
 
 permissions:
   contents: read
