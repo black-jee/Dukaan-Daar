@@ -1,9 +1,9 @@
 # KhataLink – Digital Khata & Micro-Credit Management
 
-A fully functional dual-role (Merchant + Customer) web application for tracking micro-credit at local shops (tea stalls, kirana, paan shops, etc.).
+KhataLink is a pre-production dual-role (Merchant + Customer) web application for tracking micro-credit at local shops (tea stalls, kirana, paan shops, etc.). Do not use it for real financial records until the release gates in `docs/PRODUCTION_READINESS.md` are complete.
 
 **Stack:** Next.js 15 (App Router) + TypeScript + Tailwind CSS + Supabase (Auth, Postgres, Realtime, RLS)  
-**Deploy target:** Vercel or Cloudflare Workers using the current OpenNext adapter
+**Recommended preview host:** Vercel (production deployment not yet verified)
 
 ---
 
@@ -49,7 +49,7 @@ The repository now contains an ordered, CLI-managed migration chain:
 
 For a disposable local Supabase stack, run `supabase start` and `supabase db reset` to replay the migrations. For a remote project, authenticate and link the intended project, then inspect the proposed changes with `supabase db push --dry-run --remote`. Applying with `supabase db push --remote` changes that remote database; do not run it against the connected project until the owner explicitly approves the live migration.
 
-The hardening migration removes direct client writes to balances and ledger rows, scopes financial records to participants, restricts transaction creation to the shop owner, rejects overpayments, adds idempotency and audited compensating reversals, and limits anonymous shop reads to approved public columns. Do not accept real users until the migration chain, Auth/JWT isolation, storage, backup/restore, and functional acceptance tests are verified.
+The hardening migration removes direct client writes to balances and ledger rows, scopes financial records to participants, restricts transaction creation to the shop owner, rejects overpayments, adds idempotency and audited compensating reversals, and exposes shop discovery only through a restricted `public_shops` view. Direct reads from `shops` are owner-scoped. Do not accept real users until the migration chain, Auth/JWT isolation, storage, backup/restore, and functional acceptance tests are verified.
 
 ### 3. Clone / Extract this repo
 ```bash
@@ -65,7 +65,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
 ### 4. Install & Run
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -127,7 +127,9 @@ The schema already stores `phone` on profiles. SMS delivery may incur provider c
 ---
 
 ## Security Notes
-- Apply the production-hardening migration before accepting real users.
+- Apply the complete ordered migration chain before accepting real users.
+- Public discovery uses `public_shops`; do not query the internal `shops` table from customer-facing pages.
+- Run `npm ci` for reproducible dependency installation. CI enforces `npm audit` and production-only audit gates.
 - All exposed tables use Row Level Security and least-privilege grants.
 - The service-role/secret key must never be placed in browser code or committed to Git.
 - Only a shop owner can record ledger transactions; customers cannot mark their own UPI payments as settled.
@@ -148,4 +150,5 @@ The schema already stores `phone` on profiles. SMS delivery may incur provider c
 ---
 
 Built with the product specification for **Digital Khata & Micro-Credit Management System**.
-Ready to push to GitHub and connect your Supabase project.
+
+This branch remains pre-production. Live migrations, production deployment, and real financial use are blocked pending explicit approval and completion of the release checklist.
