@@ -29,26 +29,30 @@ function EntryForm() {
   const [idempotencyKey, setIdempotencyKey] = useState("");
 
   useEffect(() => {
-    if (!shopsLoading) void load();
-  }, [shop?.id, shopsLoading]);
+    let active = true;
+    async function loadCustomers() {
+      if (shopsLoading) return;
+      if (!shop) { setCustomers([]); setSelectedCustomerId(""); setLoading(false); return; }
+      setLoading(true);
+      const supabase = createClient();
+      const { data, error: queryError } = await supabase.from("shop_customers").select("*, profiles(*)").eq("shop_id", shop.id).eq("status", "active").order("profiles(full_name)");
+      if (!active) return;
+      const shopCustomers = queryError ? [] : (data as CustomerWithProfile[]) || [];
+      setCustomers(shopCustomers);
+      setSelectedCustomerId(preselectedCustomer && shopCustomers.some((c) => c.customer_id === preselectedCustomer) ? preselectedCustomer : "");
+      if (queryError) setError("Could not load this shop’s customers. Please retry.");
+      else setError(null);
+      setLoading(false);
+    }
+    void loadCustomers();
+    return () => { active = false; };
+  }, [shop?.id, shopsLoading, preselectedCustomer]);
 
   // A changed payload is a new transaction intent. Preserve the key only for
   // retries of the exact same request after an ambiguous network failure.
   useEffect(() => {
     setIdempotencyKey("");
   }, [selectedCustomerId, amount, note, type]);
-
-  async function load() {
-    const supabase = createClient();
-    if (!shop) { setCustomers([]); setLoading(false); return; }
-    setLoading(true);
-    const { data: sc } = await supabase.from("shop_customers").select("*, profiles(*)").eq("shop_id", shop.id)
-      .eq("status", "active")
-      .order("profiles(full_name)");
-
-    setCustomers((sc as CustomerWithProfile[]) || []);
-    setLoading(false);
-  }
 
   const selected = customers.find((c) => c.customer_id === selectedCustomerId);
 
@@ -105,7 +109,7 @@ function EntryForm() {
 
       <form onSubmit={handleSubmit} className="card space-y-5">
         {error && (
-          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         )}
         {success && (
           <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">

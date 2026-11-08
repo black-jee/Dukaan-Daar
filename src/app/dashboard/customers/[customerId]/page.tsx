@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -20,42 +20,37 @@ export default function CustomerDetailPage() {
   const [creditLimit, setCreditLimit] = useState("");
   const [status, setStatus] = useState<"active" | "blocked" | "paused">("active");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
   useEffect(() => {
     if (!shopsLoading) void load();
+    return () => { requestId.current += 1; };
   }, [customerId, selectedShop?.id, shopsLoading]);
 
   async function load() {
+    const request = ++requestId.current;
     const supabase = createClient();
     if (!selectedShop) { setLink(null); setProfile(null); setTxs([]); setLoading(false); return; }
     setLoading(true);
-    const { data: sc } = await supabase.from("shop_customers").select("*").eq("shop_id", selectedShop.id)
+    setLink(null);
+    setProfile(null);
+    setTxs([]);
+    const { data: sc, error: membershipError } = await supabase.from("shop_customers").select("*").eq("shop_id", selectedShop.id)
       .eq("customer_id", customerId)
-      .single();
+      .maybeSingle();
+    if (request !== requestId.current) return;
+    if (membershipError || !sc) { setLoading(false); return; }
+    setLink(sc);
+    setCreditLimit(String(sc.credit_limit));
+    setStatus(sc.status);
 
-    if (sc) {
-      setLink(sc);
-      setCreditLimit(String(sc.credit_limit));
-      setStatus(sc.status);
-    }
-
-    const { data: p } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", customerId)
-      .single();
-    setProfile(p);
-
-    const { data: transactions } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("shop_id", selectedShop.id)
-      .eq("customer_id", customerId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    setTxs(transactions || []);
+    const [profileResult, transactionResult] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", customerId).maybeSingle(),
+      supabase.from("transactions").select("*").eq("shop_id", selectedShop.id).eq("customer_id", customerId).order("created_at", { ascending: false }).limit(50),
+    ]);
+    if (request !== requestId.current) return;
+    setProfile(profileResult.data);
+    setTxs(transactionResult.data || []);
     setLoading(false);
   }
 

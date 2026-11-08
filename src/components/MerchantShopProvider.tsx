@@ -33,4 +33,16 @@ export function MerchantShopProvider({ userId, children }: { userId: string; chi
   const value = useMemo(() => ({ shops, selectedShop, selectedShopId, setSelectedShopId, refreshShops, loading, error }), [shops, selectedShop, selectedShopId, setSelectedShopId, refreshShops, loading, error]);
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
 }
+export function MerchantShopStatus() {
+  const { error, refreshShops } = useMerchantShops();
+  if (!error) return null;
+  return (
+    <div role="alert" className="mx-auto max-w-6xl px-4 pt-3 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <span>{error}</span>
+        <button type="button" onClick={() => void refreshShops()} className="min-h-10 rounded-lg px-3 font-semibold underline underline-offset-2">Retry</button>
+      </div>
+    </div>
+  );
+}
 export function useMerchantShops() { return useContext(ShopContext); }

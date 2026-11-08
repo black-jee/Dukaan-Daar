@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   }
 
   if (profile.role === "merchant") {
-    return <MerchantDashboard userId={user.id} />;
+    return <MerchantDashboard />;
   }
 
   return <CustomerDashboard userId={user.id} />;

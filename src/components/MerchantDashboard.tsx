@@ -10,9 +10,8 @@ import { useMerchantShops } from "@/components/MerchantShopProvider";
 
 type CustomerWithProfile = ShopCustomer & { profiles: Profile | null };
 
-export default function MerchantDashboard({ userId }: { userId: string }) {
-  void userId;
-  const { selectedShop: shop, loading: shopsLoading } = useMerchantShops();
+export default function MerchantDashboard() {
+  const { selectedShop: shop, loading: shopsLoading, error: shopsError, refreshShops } = useMerchantShops();
   const [customers, setCustomers] = useState<CustomerWithProfile[]>([]);
   const [stats, setStats] = useState({
     totalOutstanding: 0,
@@ -126,6 +125,10 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
         <button onClick={() => { setLoading(true); void loadData(); }} className="btn-primary mx-auto mt-4">Try again</button>
       </section>
     );
+  }
+
+  if (shopsError) {
+    return <section role="alert" className="card text-center"><p className="text-slate-700">Shop information is temporarily unavailable. Your balances have not been changed.</p><button onClick={() => void refreshShops()} className="btn-primary mt-4">Retry</button></section>;
   }
 
   if (!shop) {
