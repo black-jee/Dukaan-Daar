@@ -44,14 +44,21 @@ export async function createClient() {
 // React cache deduplicates the auth/profile round trips during one render.
 export const getDashboardContext = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) {
+  // Middleware still calls getUser() to refresh/validate the session cookie.
+  // On the server render, verify the refreshed JWT through getClaims() rather
+  // than making a second Auth user-info request on every dashboard navigation.
+  // getClaims verifies the token (using cached JWKS where supported); RLS still
+  // authorizes all subsequent database reads and writes independently.
+  const {
+    data: { claims },
+  } = await supabase.auth.getClaims();
+
+  if (!claims?.sub) {
     return { user: null, profile: null };
   }
 
+  const user = { id: claims.sub };
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
