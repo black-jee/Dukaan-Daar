@@ -13,6 +13,7 @@ export default function LedgerPage() {
   const shopId = params.shopId as string;
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [link, setLink] = useState<ShopCustomer | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -27,6 +28,7 @@ export default function LedgerPage() {
       return;
     }
 
+    setCustomerId(user.id);
     const [shopResult, linkResult, transactionResult] = await Promise.all([
       supabase.from("public_shops").select("*").eq("id", shopId).maybeSingle(),
       supabase.from("shop_customers").select("*").eq("shop_id", shopId).eq("customer_id", user.id).maybeSingle(),
@@ -48,11 +50,12 @@ export default function LedgerPage() {
   useEffect(() => {
     const supabase = createClient();
     void load();
+    if (!customerId) return;
     const channel = supabase
-      .channel(`customer-ledger-${shopId}`)
+      .channel(`customer-ledger-${shopId}-${customerId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "transactions", filter: `customer_id=eq.${link?.customer_id || ""}` },
+        { event: "*", schema: "public", table: "transactions", filter: `customer_id=eq.${customerId}` },
         () => void load()
       )
       .on(
@@ -62,7 +65,7 @@ export default function LedgerPage() {
       )
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [load, shopId]);
+  }, [customerId, load, shopId]);
 
   function openUPI() {
     if (!shop?.upi_id || !link) return;
