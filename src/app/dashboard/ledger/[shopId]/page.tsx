@@ -143,8 +143,8 @@ export default function LedgerPage() {
             {txs.map((transaction) => (
               <li key={transaction.id} className="flex items-center justify-between gap-3 py-4">
                 <div className="min-w-0">
-                  <p className="font-semibold text-slate-900">{transaction.type === "credit" ? "Credit added" : "Payment recorded"}</p>
-                  <p className="mt-1 text-xs text-slate-500">{formatDate(transaction.created_at)}{transaction.note ? ` · ${transaction.note}` : ""}</p>
+                  <p className="font-semibold text-slate-900">{transaction.is_reversed ? "Reversed entry" : transaction.type === "credit" ? "Credit added" : "Payment recorded"}</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatDate(transaction.created_at)}{transaction.note ? ` · ${transaction.note}` : ""}{transaction.is_reversed ? " · Reversed" : ""}</p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className={`amount text-lg ${transaction.type === "credit" ? "text-rose-700" : "text-emerald-700"}`}>
