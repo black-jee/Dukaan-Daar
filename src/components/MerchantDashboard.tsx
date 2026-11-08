@@ -62,29 +62,28 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
     const currentShop = shops[0];
     setShop(currentShop);
 
-    // Customers with profiles
-    const { data: sc } = await supabase
-      .from("shop_customers")
-      .select("*, profiles(*)")
-      .eq("shop_id", currentShop.id)
-      .order("current_balance", { ascending: false });
-
-    setCustomers((sc as CustomerWithProfile[]) || []);
-
-    // Stats
-    const totalOutstanding =
-      sc?.reduce((sum, c) => sum + Number(c.current_balance), 0) || 0;
-    const activeCustomers = sc?.filter((c) => c.status === "active").length || 0;
-
-    // Today's transactions
+    // Independent shop-scoped reads run together to avoid a request waterfall.
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const [customersResult, todayResult] = await Promise.all([
+      supabase
+        .from("shop_customers")
+        .select("*, profiles(*)")
+        .eq("shop_id", currentShop.id)
+        .order("current_balance", { ascending: false }),
+      supabase
+        .from("transactions")
+        .select("amount, type")
+        .eq("shop_id", currentShop.id)
+        .gte("created_at", today.toISOString()),
+    ]);
+    const sc = customersResult.data;
+    const todayTx = todayResult.data;
+    setCustomers((sc as CustomerWithProfile[]) || []);
 
-    const { data: todayTx } = await supabase
-      .from("transactions")
-      .select("amount, type")
-      .eq("shop_id", currentShop.id)
-      .gte("created_at", today.toISOString());
+    const totalOutstanding =
+      sc?.reduce((sum, customer) => sum + Number(customer.current_balance), 0) || 0;
+    const activeCustomers = sc?.filter((customer) => customer.status === "active").length || 0;
 
     let todayCredit = 0;
     let todayRecoveries = 0;
@@ -131,8 +130,8 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{shop.name}</h1>
-          <p className="text-sm text-slate-500">{shop.category}</p>
+          <h1 className="page-title truncate">{shop.name}</h1>
+          <p className="page-subtitle">{shop.category} · This shop only</p>
         </div>
         <Link
           href="/dashboard/entry"
@@ -208,7 +207,7 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
               <li key={c.id}>
                 <Link
                   href={`/dashboard/customers/${c.customer_id}`}
-                  className="flex items-center justify-between py-3 hover:bg-slate-50 -mx-2 px-2 rounded-lg"
+                  className="flex min-h-16 items-center justify-between gap-3 rounded-xl px-2 py-3 transition hover:bg-slate-50"
                 >
                   <div>
                     <p className="font-medium text-slate-900">
