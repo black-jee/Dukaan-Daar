@@ -40,7 +40,7 @@ export default function MerchantDashboard() {
     const [customersResult, todayResult] = await Promise.all([
       supabase
         .from("shop_customers")
-        .select("*, profiles(*)")
+        .select("*, profiles(full_name, phone)")
         .eq("shop_id", currentShop.id)
         .order("current_balance", { ascending: false }),
       supabase

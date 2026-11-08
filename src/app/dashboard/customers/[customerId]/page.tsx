@@ -56,7 +56,7 @@ export default function CustomerDetailPage() {
   }
 
   async function updateSettings() {
-    if (!link) return;
+    if (!link || !selectedShop) return;
     const supabase = createClient();
     const parsedLimit = Number(creditLimit);
     if (!Number.isFinite(parsedLimit) || parsedLimit < 0) {
@@ -69,7 +69,9 @@ export default function CustomerDetailPage() {
     const { error: updateError } = await supabase
       .from("shop_customers")
       .update({ credit_limit: parsedLimit, status })
-      .eq("id", link.id);
+      .eq("id", link.id)
+      .eq("shop_id", selectedShop.id)
+      .eq("customer_id", customerId);
 
     if (updateError) {
       setError("Could not update customer settings. Please try again.");

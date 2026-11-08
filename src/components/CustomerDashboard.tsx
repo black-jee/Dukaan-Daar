@@ -16,8 +16,10 @@ export default function CustomerDashboard({ userId }: { userId: string }) {
   // Shop profile data is stable compared with ledger balances. Keep it locally
   // so realtime balance updates do not trigger another public-shop query.
   const shopCache = useRef(new Map<string, PublicShop>());
+  const requestId = useRef(0);
 
   const loadData = useCallback(async () => {
+    const request = ++requestId.current;
     const supabase = createClient();
     setLoadError(null);
 
@@ -27,6 +29,7 @@ export default function CustomerDashboard({ userId }: { userId: string }) {
       .eq("customer_id", userId)
       .order("joined_at", { ascending: false });
 
+    if (request !== requestId.current) return;
     if (membershipError) {
       setLoadError("We couldn't load your shop ledgers. Please try again.");
       setLoading(false);
@@ -41,6 +44,7 @@ export default function CustomerDashboard({ userId }: { userId: string }) {
         .select("*")
         .in("id", missingShopIds);
 
+      if (request !== requestId.current) return;
       if (shopsError) {
         setLoadError("Your shop details couldn't be loaded. Please refresh.");
         setLoading(false);
@@ -75,6 +79,7 @@ export default function CustomerDashboard({ userId }: { userId: string }) {
       .subscribe();
 
     return () => {
+      requestId.current += 1;
       void supabase.removeChannel(channel);
     };
   }, [loadData, userId]);

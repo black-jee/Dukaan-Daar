@@ -18,7 +18,7 @@ export default function CustomersPage() {
       if (!selectedShop) { setRows([]); setError(null); setLoading(false); return; }
       setLoading(true);
       const supabase = createClient();
-      const { data, error } = await supabase.from("shop_customers").select("*, profiles(*)").eq("shop_id", selectedShop.id).order("current_balance", { ascending: false });
+      const { data, error } = await supabase.from("shop_customers").select("*, profiles(full_name, phone)").eq("shop_id", selectedShop.id).order("current_balance", { ascending: false });
       if (!active) return;
       setRows(error ? [] : (data as Row[]) || []);
       setError(error ? "Customers could not be loaded. Please retry." : null);
