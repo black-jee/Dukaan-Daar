@@ -24,7 +24,7 @@ The Supabase project `wzsvvwhvbbbrxuaqdyue` is healthy. Read-only checks confirm
 - `20261108000100_harden_financial_ledger.sql` applies least-privilege grants, participant-scoped RLS, immutable transaction rows, append-only reversal audit, merchant-only transaction RPCs, idempotency, and balance/credit-limit enforcement.
 - `supabase/schema.sql` is now a comment-only deprecated pointer and must not be executed; the timestamped migration chain is canonical.
 - GitHub Actions replays the ordered migration files in a disposable PostgreSQL 17 service, then runs ledger/RLS/idempotency/reversal tests and concurrent duplicate-submission verification.
-- The latest verified CI checkpoint passed migration replay, shop-view privacy tests, customer join, ledger tests, concurrent duplicate submission, `npm ci`, dependency audit gates, typecheck, lint, and production build.
+- GitHub Actions run #124 on commit `f59f86c983530a329ca6c1737dfa226e18ee3059` passed migration replay, shop-view privacy tests, anonymous denial on private tables, cross-customer isolation, customer join, ledger tests, concurrent duplicate submission, `npm ci`, dependency audit gates, typecheck, lint, and production build.
 - The npm audit report for the committed lockfile reports zero vulnerabilities across all dependencies and across production dependencies only.
 - These tests are not a substitute for real Supabase Auth/JWT, Storage, backup/restore, or real-account acceptance testing.
 
@@ -35,7 +35,7 @@ The base schema uses cascading foreign keys from profiles/shops to ledger-relate
 ## Remaining security and release work
 
 - Real Supabase Auth/JWT tests with multiple accounts remain required.
-- Storage bucket/object policies remain unverified.
+- Read-only inspection found no Storage buckets and no Storage RLS policies in the connected Supabase project; bucket design and object-level policies remain unimplemented and unverified.
 - Broader concurrent credit-limit boundary tests remain required.
 - Account deletion, PII retention, backup/restore, operational monitoring, UPI settlement controls, and full frontend acceptance remain release blockers.
 - Production host/domain, redirects, runtime configuration, and deployment remain unverified.
