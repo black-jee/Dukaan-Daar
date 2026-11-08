@@ -15,12 +15,12 @@ For a remote project, link only the intended project and inspect proposed change
 
 ## Latest verified checkpoint
 
-- Commit `3674583c6aac20512094a9410284d98622ba2e95` passed GitHub Actions: `npm ci`, full and production-only npm audit gates, TypeScript, ESLint, Next.js production build, baseline migration replay, hardening migration replay, RLS/ledger/idempotency/reversal smoke tests, and concurrent duplicate-submission verification.
+- Commit `f59f86c983530a329ca6c1737dfa226e18ee3059` passed GitHub Actions run #124: `npm ci`, full and production-only npm audit gates, TypeScript, ESLint, Next.js production build, baseline migration replay, hardening migration replay, RLS/ledger/idempotency/reversal smoke tests, and concurrent duplicate-submission verification.
 - The npm audit report for the dependency tree used by this branch reported **zero vulnerabilities** in both the full dependency tree and production-only tree.
 - A committed `package-lock.json` now makes installs reproducible; CI uses `npm ci`.
-- Public discovery is served through `public.public_shops`, a security-barrier view containing only `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. Anonymous users have no direct SELECT privilege on `public.shops`; authenticated direct table reads are restricted by RLS to the shop owner.
+- Public discovery is served through `public.public_shops`, a security-barrier view containing only `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. Anonymous users have no direct SELECT privilege on `public.shops`; authenticated direct table reads are restricted by RLS to the shop owner. CI additionally verifies anonymous denial on profiles, customer links, transactions and reversal records, plus cross-customer isolation.
 - Customer discovery and QR join pages use the restricted view. The customer join policy uses the same active-shop view and a private, fixed-search-path role helper to avoid recursive RLS evaluation.
-- The connected Supabase project `wzsvvwhvbbbrxuaqdyue` was rechecked read-only: it remains healthy with zero application tables and zero recorded migrations.
+- The connected Supabase project `wzsvvwhvbbbrxuaqdyue` was rechecked read-only: it remains healthy with zero application tables and zero recorded migrations. A read-only Storage inspection found zero buckets and zero Storage RLS policies; real Storage setup/testing remains a release blocker.
 - The deprecated `supabase/schema.sql` file was converted to a comment-only pointer to prevent accidental use of the old prototype schema.
 - PR #1 remains open, draft, and unmerged. No production migration or deployment has been performed.
 
