@@ -15,7 +15,7 @@ For a remote project, link only the intended project and inspect proposed change
 
 ## Latest verified checkpoint
 
-- Commit `f59f86c983530a329ca6c1737dfa226e18ee3059` passed GitHub Actions run #124: `npm ci`, full and production-only npm audit gates, TypeScript, ESLint, Next.js production build, baseline migration replay, hardening migration replay, RLS/ledger/idempotency/reversal smoke tests, and concurrent duplicate-submission verification.
+- Commit `4dc554fc2066fb09c3f3d3b3a15328d09ba06f5a` passed GitHub Actions run #128: `npm ci`, full and production-only npm audit gates, TypeScript, ESLint, Next.js production build, baseline migration replay, hardening migration replay, RLS/ledger/idempotency/reversal smoke tests, and concurrent duplicate-submission verification.
 - The npm audit report for the dependency tree used by this branch reported **zero vulnerabilities** in both the full dependency tree and production-only tree.
 - A committed `package-lock.json` now makes installs reproducible; CI uses `npm ci`.
 - Public discovery is served through `public.public_shops`, a security-barrier view containing only `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. Anonymous users have no direct SELECT privilege on `public.shops`; authenticated direct table reads are restricted by RLS to the shop owner. CI additionally verifies anonymous denial on profiles, customer links, transactions and reversal records, plus cross-customer isolation.
@@ -34,7 +34,7 @@ For a remote project, link only the intended project and inspect proposed change
 
 ## Remaining release blockers
 
-- **Real Supabase Auth/JWT:** disposable PostgreSQL tests simulate `auth.uid()`; they do not replace real Supabase Auth sessions, email confirmation, refresh, role claims, and cross-account testing.
+- **Real Supabase Auth/JWT:** the disposable PostgreSQL harness now models Supabase's `request.jwt.claims` JSON payload and checks `sub`, `role`, and `aud` resolution through `auth.uid()`, `auth.role()`, and `auth.jwt()`. It does not verify JWT signatures or exercise GoTrue signup, email confirmation, refresh, logout, or actual PostgREST gateway behavior. Those require a local Supabase stack integration suite and real-account acceptance.
 - **Storage:** production storage bucket/object access policies have not been verified.
 - **Account deletion and retention:** hard deletion conflicts with immutable ledger rows and foreign-key anchors. Deactivate accounts/shops until a tested PII-anonymization and retention workflow exists.
 - **Operations:** backup/restore, monitoring, incident response, and recovery procedures are not yet verified.
