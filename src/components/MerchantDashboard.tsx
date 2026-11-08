@@ -125,7 +125,7 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
         <div className="min-w-0">
           <p className="eyebrow">Shop overview</p>
           <h1 className="page-title truncate">{shop.name}</h1>
-          <p className="page-subtitle">{shop.category} · This shop's ledger only</p>
+          <p className="page-subtitle">{shop.category} · This shop&apos;s ledger only</p>
         </div>
         <Link href="/dashboard/entry" className="btn-primary min-h-12 shrink-0 gap-2">
           <Plus className="h-5 w-5" /> New entry
