@@ -263,7 +263,21 @@ export type Database = {
         };
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      public_shops: {
+        Row: {
+          id: string;
+          name: string;
+          category: string;
+          address: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          upi_id: string | null;
+          description: string | null;
+        };
+        Relationships: [];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
@@ -271,5 +285,6 @@ export type Database = {
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Shop = Database["public"]["Tables"]["shops"]["Row"];
+export type PublicShop = Database["public"]["Views"]["public_shops"]["Row"];
 export type ShopCustomer = Database["public"]["Tables"]["shop_customers"]["Row"];
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
