@@ -20,6 +20,7 @@ export default function CustomerDetailPage() {
   const [creditLimit, setCreditLimit] = useState("");
   const [status, setStatus] = useState<"active" | "blocked" | "paused">("active");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
