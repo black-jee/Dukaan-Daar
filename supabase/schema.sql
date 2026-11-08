@@ -1,3 +1,10 @@
+-- KhataLink base schema reference.
+-- For a new environment, use the ordered Supabase CLI migrations instead:
+--   20261108000000_initial_schema.sql
+--   20261108000100_harden_financial_ledger.sql
+-- This base file is not a standalone production-ready schema. Do not run it
+-- alone in SQL Editor or expose the app before applying the hardening migration.
+
 -- KhataLink Database Schema for Supabase (PostgreSQL)
 -- Run this in Supabase SQL Editor after creating a new project.
 
