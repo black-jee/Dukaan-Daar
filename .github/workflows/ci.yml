@@ -63,6 +63,15 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: khatalink_test
 
+      - name: Prevent parent-row deletion from cascading into ledger history
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108000200_prevent_financial_history_cascade_deletes.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: khatalink_test
+
       - name: Run ledger, idempotency, reversal and RLS smoke tests
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/financial_ledger_smoke.sql
         env:
@@ -112,7 +121,7 @@ jobs:
         run: timeout 5m supabase db reset
 
       - name: Export local Supabase API credentials
-        run: supabase status -o env >> "$GITHUB_ENV"
+        run: supabase status -o env | grep -E '^(API_URL|ANON_KEY)=' >> "$GITHUB_ENV"
 
       - name: Exercise real local Auth, JWT and PostgREST RLS
         run: timeout 3m node scripts/test-supabase-auth.mjs
