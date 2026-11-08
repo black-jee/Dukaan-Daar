@@ -6,6 +6,19 @@ begin;
 create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 
+grant usage on schema private to authenticated;
+create or replace function private.current_profile_role()
+returns text
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $role$
+  select p.role from public.profiles p where p.id = auth.uid();
+$role$;
+revoke all on function private.current_profile_role() from public, anon, authenticated;
+grant execute on function private.current_profile_role() to authenticated;
+
 -- Normalize nullable prototype columns before enforcing production invariants.
 update public.shop_customers
 set credit_limit = coalesce(credit_limit, 500.00),
@@ -174,27 +187,18 @@ create policy shops_owner_insert
 on public.shops for insert to authenticated
 with check (
   owner_id = (select auth.uid())
-  and exists (
-    select 1 from public.profiles p
-    where p.id = (select auth.uid()) and p.role = 'merchant'
-  )
+  and private.current_profile_role() = 'merchant'
 );
 
 create policy shops_owner_update
 on public.shops for update to authenticated
 using (
   owner_id = (select auth.uid())
-  and exists (
-    select 1 from public.profiles p
-    where p.id = (select auth.uid()) and p.role = 'merchant'
-  )
+  and private.current_profile_role() = 'merchant'
 )
 with check (
   owner_id = (select auth.uid())
-  and exists (
-    select 1 from public.profiles p
-    where p.id = (select auth.uid()) and p.role = 'merchant'
-  )
+  and private.current_profile_role() = 'merchant'
 );
 
 -- Customers can join active shops. Merchants can only change allowed link settings.
@@ -212,10 +216,7 @@ create policy shop_customers_customer_join
 on public.shop_customers for insert to authenticated
 with check (
   customer_id = (select auth.uid())
-  and exists (
-    select 1 from public.profiles p
-    where p.id = (select auth.uid()) and p.role = 'customer'
-  )
+  and private.current_profile_role() = 'customer'
   and exists (
     select 1 from public.public_shops s
     where s.id = shop_customers.shop_id
