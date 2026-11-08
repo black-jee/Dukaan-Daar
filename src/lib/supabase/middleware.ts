@@ -50,16 +50,25 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/signup") ||
     request.nextUrl.pathname === "/";
 
+  const redirectWithRefreshedCookies = (url: URL) => {
+    const response = NextResponse.redirect(url);
+    // Preserve any refreshed/cleared Supabase cookies on auth redirects.
+    supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
+      response.cookies.set(name, value, options);
+    });
+    return response;
+  };
+
   if (!user && !isAuthPage && request.nextUrl.pathname.startsWith("/dashboard")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return redirectWithRefreshedCookies(url);
   }
 
-  if (user && (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup")) {
+  if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+    return redirectWithRefreshedCookies(url);
   }
 
   return supabaseResponse;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Store, Home, Users, QrCode, LogOut } from "lucide-react";
 import type { Profile } from "@/types/database";
@@ -10,14 +10,18 @@ import { useMerchantShops } from "@/components/MerchantShopProvider";
 
 export default function DashboardNav({ profile }: { profile: Profile | null }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { shops, selectedShopId, setSelectedShopId } = useMerchantShops();
 
   async function handleLogout() {
     const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      window.alert("We couldn't log you out. Please try again.");
+      return;
+    }
+    // A full navigation clears stale App Router state and prefetched dashboard
+    // links before another account can sign in on this device.
+    window.location.replace("/");
   }
 
   const isMerchant = profile?.role === "merchant";
