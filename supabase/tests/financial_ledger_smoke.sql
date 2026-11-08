@@ -66,7 +66,7 @@ reset role;
 
 -- A customer can discover active shops but cannot read any row from the internal shops table.
 set role authenticated;
-select set_config('request.jwt.claim.sub','20000000-0000-4000-8000-000000000002',false);
+select set_config('request.jwt.claims','{"sub":"20000000-0000-4000-8000-000000000002","role":"authenticated","aud":"authenticated"}',false);
 do $test$
 begin
   if (select count(*) from public.public_shops) <> 2 then
@@ -93,7 +93,7 @@ reset role;
 
 -- Merchant one can record ledger entries; duplicate retries must not double-post.
 set role authenticated;
-select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',false);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated","aud":"authenticated"}',false);
 select public.add_transaction(
   '30000000-0000-4000-8000-000000000001',
   '20000000-0000-4000-8000-000000000001',
@@ -154,7 +154,7 @@ end;
 $$;
 
 -- Customer one sees only their own linked data and cannot write the ledger or change role.
-select set_config('request.jwt.claim.sub','20000000-0000-4000-8000-000000000001',false);
+select set_config('request.jwt.claims','{"sub":"20000000-0000-4000-8000-000000000001","role":"authenticated","aud":"authenticated"}',false);
 do $$
 begin
   if (select count(*) from public.shop_customers) <> 1 then
@@ -175,7 +175,7 @@ reset role;
 
 -- Merchant two cannot see merchant one's customer links or transactions.
 set role authenticated;
-select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',false);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","role":"authenticated","aud":"authenticated"}',false);
 do $$
 begin
   if (select count(*) from public.shop_customers) <> 1 then
@@ -190,7 +190,7 @@ reset role;
 
 -- Customer cannot call the merchant-only ledger RPC.
 set role authenticated;
-select set_config('request.jwt.claim.sub','20000000-0000-4000-8000-000000000002',false);
+select set_config('request.jwt.claims','{"sub":"20000000-0000-4000-8000-000000000002","role":"authenticated","aud":"authenticated"}',false);
 do $$
 begin
   begin
