@@ -9,6 +9,11 @@ import Link from "next/link";
 export default function QRPage() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -47,7 +52,7 @@ export default function QRPage() {
   }
 
   // QR payload: deep link or just shop ID for the app to handle
-  const qrValue = `${typeof window !== "undefined" ? window.location.origin : ""}/join/${shop.id}`;
+  const qrValue = `${origin}/join/${shop.id}`;
 
   return (
     <div className="mx-auto max-w-md space-y-6">
@@ -58,7 +63,7 @@ export default function QRPage() {
 
       <div className="card flex flex-col items-center gap-4 py-8">
         <div className="rounded-2xl bg-white p-4 shadow-inner">
-          <QRCodeSVG value={qrValue} size={220} level="H" includeMargin />
+          {origin ? <QRCodeSVG value={qrValue} size={220} level="H" includeMargin /> : <div className="flex h-[220px] w-[220px] items-center justify-center text-sm text-slate-500">Preparing QR code…</div>}
         </div>
         <div className="text-center">
           <p className="font-bold text-lg">{shop.name}</p>
