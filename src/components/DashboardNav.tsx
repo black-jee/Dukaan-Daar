@@ -32,7 +32,7 @@ export default function DashboardNav({ profile }: { profile: Profile | null }) {
       ];
 
   const nav = (mobile = false) => (
-    <nav aria-label={mobile ? "Mobile navigation" : "Main navigation"} className={mobile ? "grid grid-cols-4 gap-1" : "flex items-center gap-1"}>
+    <nav aria-label={mobile ? "Mobile navigation" : "Main navigation"} className={mobile ? `grid ${navItems.length === 2 ? "grid-cols-2" : "grid-cols-4"} gap-1` : "flex items-center gap-1"}>
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
