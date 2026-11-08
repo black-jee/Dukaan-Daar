@@ -69,6 +69,15 @@ set role authenticated;
 select set_config('request.jwt.claims','{"sub":"20000000-0000-4000-8000-000000000002","role":"authenticated","aud":"authenticated"}',false);
 do $test$
 begin
+  if auth.uid() <> '20000000-0000-4000-8000-000000000002'::uuid then
+    raise exception 'Supabase JWT sub claim was not resolved by auth.uid()';
+  end if;
+  if auth.role() <> 'authenticated' then
+    raise exception 'Supabase JWT role claim was not resolved by auth.role()';
+  end if;
+  if auth.jwt() ->> 'aud' <> 'authenticated' then
+    raise exception 'Supabase JWT audience claim was not preserved';
+  end if;
   if (select count(*) from public.public_shops) <> 2 then
     raise exception 'Authenticated customer cannot discover public shops';
   end if;
