@@ -105,20 +105,20 @@ jobs:
           version: latest
 
       - name: Start disposable local Supabase stack
-        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+        run: timeout 12m supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
 
       - name: Apply canonical migrations to local Supabase
-        run: supabase db reset
+        run: timeout 5m supabase db reset
 
       - name: Export local Supabase API credentials
         run: supabase status -o env >> "$GITHUB_ENV"
 
       - name: Exercise real local Auth, JWT and PostgREST RLS
-        run: node scripts/test-supabase-auth.mjs
+        run: timeout 3m node scripts/test-supabase-auth.mjs
 
       - name: Stop disposable local Supabase stack
         if: always()
-        run: supabase stop --no-backup
+        run: timeout 2m supabase stop --no-backup
 
   verify:
     name: Typecheck, lint and build
