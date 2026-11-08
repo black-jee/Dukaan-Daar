@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
@@ -22,8 +22,10 @@ export default function MerchantDashboard() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
   const loadData = useCallback(async () => {
+    const request = ++requestId.current;
     const supabase = createClient();
     setLoadError(null);
     if (!shop) {
@@ -49,6 +51,8 @@ export default function MerchantDashboard() {
         .eq("shop_id", currentShop.id)
         .gte("created_at", today.toISOString()),
     ]);
+
+    if (request !== requestId.current) return;
 
     if (customersResult.error || todayResult.error) {
       setLoadError("Your shop figures couldn’t be loaded. No balances have been changed. Please retry.");
@@ -79,6 +83,9 @@ export default function MerchantDashboard() {
     if (shopsLoading) return;
     setLoading(true);
     void loadData();
+    return () => {
+      requestId.current += 1;
+    };
   }, [loadData, shopsLoading]);
 
   // Subscribe only after the active shop is known. Shop-scoped filtering keeps
