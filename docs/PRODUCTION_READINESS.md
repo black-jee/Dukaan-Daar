@@ -16,7 +16,7 @@ For a remote project, link only the intended project and inspect proposed change
 
 ## Latest verified checkpoint
 
-- Commit `69ffb9e744d76670e273002c9626cde119deec24` passed GitHub Actions run #159: all three CI jobs succeeded, including full migration replay, financial ledger/RLS/idempotency/reversal/concurrency tests, real local Supabase Auth/PostgREST with two merchants and two customers, dependency audits, TypeScript, lint, and production build.
+- Commit `6665c0340cb467879114aadf2360dde1c32fbcf4` passed GitHub Actions run #164: all three CI jobs succeeded, including full migration replay, financial ledger/RLS/idempotency/reversal/concurrency tests, privileged-delete safeguards, a disposable PostgreSQL dump/restore check, real local Supabase Auth/PostgREST with two merchants and two customers, dependency audits, TypeScript, lint, and production build.
 - The npm audit report for the dependency tree used by this branch reported **zero vulnerabilities** in both the full dependency tree and production-only tree.
 - A committed `package-lock.json` now makes installs reproducible; CI uses `npm ci`.
 - Public discovery is served through `public.public_shops`, a security-barrier view containing only `id`, `name`, `category`, `address`, `latitude`, `longitude`, `upi_id`, and `description`. Anonymous users have no direct SELECT privilege on `public.shops`; authenticated direct table reads are restricted by RLS to the shop owner. CI additionally verifies anonymous denial on profiles, customer links, transactions and reversal records, plus cross-customer isolation. It also verifies that privileged Auth-user/profile/shop deletes are blocked when they could erase ledger history.
@@ -35,7 +35,7 @@ For a remote project, link only the intended project and inspect proposed change
 
 ## Remaining release blockers
 
-- **Real Supabase Auth/JWT:** the disposable PostgreSQL harness models Supabase's `request.jwt.claims` JSON payload and checks `sub`, `role`, and `aud` resolution through `auth.uid()`, `auth.role()`, and `auth.jwt()`; this alone does not verify signatures. A second CI job now starts a disposable local Supabase stack, applies the canonical migrations, and exercises GoTrue signup/session creation, profile triggers and role normalization, JWT-authenticated PostgREST RLS, public discovery, customer joining, merchant-only ledger RPC authorization, refresh, and logout. This is local integration coverage, not a test against the connected hosted project; real-account email deliverability and cross-account acceptance remain outstanding.
+- **Real Supabase Auth/JWT:** the disposable PostgreSQL harness models Supabase's `request.jwt.claims` JSON payload and checks `sub`, `role`, and `aud` resolution through `auth.uid()`, `auth.role()`, and `auth.jwt()`; this alone does not verify signatures. A second CI job now starts a disposable local Supabase stack, applies the canonical migrations, and exercises GoTrue signup/session creation, profile triggers and role normalization, JWT-authenticated PostgREST RLS, public discovery, customer joining, merchant-only ledger RPC authorization, refresh, and logout. This is isolated local integration coverage, not a test against the connected hosted project. Real-account email deliverability and user-acceptance testing remain outstanding.
 - **Storage:** no upload feature is currently implemented. Storage remains intentionally unconfigured; if uploads are added, private bucket/object RLS and isolated tests defined in `docs/STORAGE_SECURITY_DESIGN.md` are mandatory before release.
 - **Account deletion and retention:** migration `20261108000200` now blocks Auth-user/profile/shop/customer deletion when it would affect linked records or ledger history. This is a safety stop, not a complete deletion workflow. Deactivate accounts/shops until a tested PII-anonymization, tombstone, and retention workflow exists.
 - **Operations:** local CI now performs a custom-format PostgreSQL dump/restore smoke test against disposable databases and verifies ledger summaries plus delete restrictions survive restoration. This does not test Supabase-managed backups, Auth identity recovery, offsite encryption/retention, or a hosted restore drill. Complete the operational requirements in `docs/BACKUP_RESTORE_READINESS.md`, then verify monitoring, incident response, and recovery procedures before launch.
@@ -47,11 +47,11 @@ For a remote project, link only the intended project and inspect proposed change
 
 `supabase-auth-integration` in GitHub Actions starts a disposable local Supabase stack and applies the timestamped migrations. `scripts/test-supabase-auth.mjs` uses the local Auth and PostgREST APIs with actual issued access/refresh tokens; the test data and credentials exist only inside the ephemeral CI environment. The local email confirmation setting is disabled solely to allow automated signup/session tests without an email inbox.
 
-This test does not connect to or mutate the hosted Supabase project `wzsvvwhvbbbrxuaqdyue`. Run #153 passed the local Supabase Auth/PostgREST integration: GoTrue signup/session creation, profile triggers and role normalization, JWT-authenticated PostgREST RLS, public discovery, customer joining, merchant-only ledger RPC authorization, refresh, and logout. This does not test hosted project accounts.
+This test does not connect to or mutate the hosted Supabase project `wzsvvwhvbbbrxuaqdyue`. Run #164 passed the local Supabase Auth/PostgREST integration with two merchants and two customers: GoTrue signup/session creation, profile triggers and role normalization, JWT-authenticated merchant/shop and customer/ledger isolation, public discovery, self-join enforcement, cross-merchant transaction denial, merchant-only ledger RPC authorization, refresh, and logout. This does not test hosted project accounts.
 
-## Required cross-account tests
+## Automated cross-account coverage and remaining acceptance
 
-Use two merchants (M1, M2) and two customers (C1, C2), with separate shops and links.
+CI creates two independent merchant accounts (M1, M2) and two customer accounts (C1, C2), each with a separate shop and link, using real local GoTrue-issued JWTs. It verifies the core isolation rules below. Repeat the workflow with separate human-controlled accounts during pre-release acceptance.
 
 - Anonymous users can discover active shops through `public_shops` and read only approved public columns.
 - Anonymous users cannot query `shops`, profiles, customer links, balances, transactions, or reversals.
