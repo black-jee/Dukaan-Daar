@@ -90,18 +90,25 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
   }, [userId]);
 
   useEffect(() => {
-    const supabase = createClient();
     void loadData();
+  }, [loadData]);
+
+  // Subscribe only after the active shop is known. Shop-scoped filtering keeps
+  // activity in unrelated shops from refreshing this dashboard.
+  useEffect(() => {
+    if (!shop?.id) return;
+
+    const supabase = createClient();
     const channel = supabase
-      .channel(`merchant-dashboard-${userId}`)
+      .channel(`merchant-dashboard-${shop.id}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "shop_customers" },
-        () => void loadData()
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "transactions" },
+        {
+          event: "*",
+          schema: "public",
+          table: "shop_customers",
+          filter: `shop_id=eq.${shop.id}`,
+        },
         () => void loadData()
       )
       .subscribe();
@@ -109,7 +116,7 @@ export default function MerchantDashboard({ userId }: { userId: string }) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [loadData, userId]);
+  }, [loadData, shop?.id]);
 
   const filtered = customers.filter((customer) => {
     const name = customer.profiles?.full_name?.toLowerCase() || "";
