@@ -18,37 +18,17 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login?oauth=failed", origin));
   }
 
-  // The signup page may request a merchant/customer role. Only apply it to a
-  // freshly created OAuth account; never change an existing user's role on login.
+  // A database-created, one-time claim exists only for a newly inserted Google
+  // Auth user. Existing Google accounts have no claim, so their role is never
+  // changed by a login callback, even if a role query parameter is supplied.
   if (requestedRole === "merchant" || requestedRole === "customer") {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("created_at")
-      .eq("id", data.user.id)
-      .maybeSingle();
+    const { error: roleError } = await supabase.rpc(
+      "claim_google_signup_role",
+      { p_role: requestedRole }
+    );
 
-    const userCreatedAt = Date.parse(data.user.created_at);
-    const profileCreatedAt = profile?.created_at
-      ? Date.parse(profile.created_at)
-      : Number.NaN;
-    const isNewProfile =
-      Number.isFinite(userCreatedAt) &&
-      Number.isFinite(profileCreatedAt) &&
-      Math.abs(userCreatedAt - profileCreatedAt) <= 60_000;
-
-    if (profileError || !profile) {
+    if (roleError) {
       return NextResponse.redirect(new URL("/login?oauth=profile", origin));
-    }
-
-    if (isNewProfile) {
-      const { error: roleError } = await supabase
-        .from("profiles")
-        .update({ role: requestedRole })
-        .eq("id", data.user.id);
-
-      if (roleError) {
-        return NextResponse.redirect(new URL("/login?oauth=profile", origin));
-      }
     }
   }
 
