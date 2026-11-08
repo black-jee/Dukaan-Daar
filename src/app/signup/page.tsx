@@ -10,7 +10,6 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const initialRole = searchParams.get("role") === "merchant" ? "merchant" : "customer";
 
-  const supabase = createClient();
   const [role, setRole] = useState<"merchant" | "customer">(initialRole);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -22,6 +21,7 @@ function SignupForm() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = createClient();
     setLoading(true);
     setError(null);
 
@@ -53,6 +53,7 @@ function SignupForm() {
   }
 
   async function handleGoogleSignup() {
+    const supabase = createClient();
     setGoogleLoading(true);
     setError(null);
 
