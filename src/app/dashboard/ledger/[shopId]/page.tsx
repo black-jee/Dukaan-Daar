@@ -22,8 +22,13 @@ export default function LedgerPage() {
   const load = useCallback(async () => {
     const supabase = createClient();
     setLoadError(null);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // This is a browser-side identity hint only. Every ledger query remains
+    // protected by Supabase RLS, which validates the signed access token.
+    // Reading the already-held session avoids an extra Auth network round trip
+    // before the three independent, shop-scoped reads below.
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (sessionError || !user) {
       setLoadError("Please sign in to view this passbook.");
       setLoading(false);
       return;
