@@ -17,7 +17,6 @@ const CATEGORIES = [
 
 export default function ShopSetupPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [shop, setShop] = useState<Shop | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -34,6 +33,7 @@ export default function ShopSetupPage() {
   }, []);
 
   async function loadShop() {
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -62,6 +62,7 @@ export default function ShopSetupPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = createClient();
     setSaving(true);
     setError(null);
     setSuccess(false);
